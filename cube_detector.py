@@ -233,7 +233,8 @@ class cubeDetector:
             epsilon = 0.02 * cv2.arcLength(contour, isClosed)
             approx_points = cv2.approxPolyDP(contour, epsilon, isClosed)
             approx_points_pack.append(approx_points)
-
+        if len(approx_points_pack)==0:
+            return None,None
         if show_img_process:
             approx_image = np.zeros(
                 (masked_image.shape[0], masked_image.shape[1]), dtype=np.uint8
@@ -248,7 +249,6 @@ class cubeDetector:
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
         updated_points=cv2.cornerSubPix(gray,np.float32(list(updated_points)),(5,5),(-1,-1),criteria)
 
-    
         correct_approx_image = np.zeros(
             (masked_image.shape[0], masked_image.shape[1]), dtype=np.uint8
         )
@@ -257,12 +257,15 @@ class cubeDetector:
                 correct_approx_image, [correct_approx_points], isClosed, (255), 2
             )
 
+        if show_img_process:
+            for point in updated_points:
+                x, y = point.astype(int)
+                cv2.circle(masked_image, (x, y), 5, color_rgb, -1)
+
         for point in updated_points:
-            print(point)
-            x, y = point.astype(int)
-            cv2.circle(masked_image, (x, y), 5, color_rgb, -1)
-            x = int(x / self.box_scale) + self.x1
-            y = int(y / self.box_scale) + self.y1
+            x,y=point.astype(np.intp)
+            x=int(point[0]/self.box_scale)+self.x1
+            y=int(point[1]/self.box_scale)+self.y1
             cv2.circle(self.output_img, (x, y), 5, color_rgb, -1)
 
         if show_img_process:
@@ -279,8 +282,10 @@ class cubeDetector:
         return correct_approx_image,updated_points
     
     def __largest_plane_detect(self,corner_image,corner_points,show_img_process=False):
-        max_contour = None
-        max_area = 0
+        if corner_image is None or corner_points is None:
+            return None
+
+
         contours,_ = cv2.findContours(corner_image,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         contours = contours[1:]
         contours = sorted(contours,key=cv2.contourArea,reverse=True)
@@ -301,10 +306,15 @@ class cubeDetector:
         if len(contours_approx) == 0 :
             return None
         for point, coordinate in zip(contours_approx[0],[(0,0,0),(0,1,0),(1,1,0),(1,0,0)]):
-            point=(int(point[0][0]/self.box_scale)+self.x1
-                   ,int(point[0][1]/self.box_scale)+self.y1)
+
+            target_point = np.array(point)
+            distances = np.linalg.norm(corner_points - target_point, axis=1)
+            nearest_index = np.argmin(distances)
+            point = corner_points[nearest_index]
+            point[0]=point[0]/self.box_scale+self.x1
+            point[1] = point[1]/self.box_scale+self.y1
             cube_coordinates.append(point)
-            cv2.putText(self.output_img, f"{coordinate}", point, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            cv2.putText(self.output_img, f"{coordinate}", list(np.intp(point)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
         if contours!=[]:
             cv2.fillPoly(contour_image, [contours[0]], (255, 0, 0))  # 使用蓝色 (BGR格式)
@@ -314,7 +324,8 @@ class cubeDetector:
         if show_img_process:
             cv2.imshow("contour", contour_image)
             cv2.waitKey(0)
-        return np.array(cube_coordinates)
+        cube_coordinates = np.array(cube_coordinates)
+        return cube_coordinates
 
 
 if __name__ == "__main__":
