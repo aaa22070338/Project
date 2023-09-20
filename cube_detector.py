@@ -77,8 +77,8 @@ class cubeDetector:
             if color != None and not color_detected == color:
                 print(f"index {index} is not {color}!")
                 return self.output_img
-            corner_image = self.__conner_detect_process(masked_image, color_rgb, show_process_img)
-            plane_corners = self.__largest_plane_detect(corner_image,show_process_img)
+            corner_image,corner_points = self.__conner_detect_process(masked_image, color_rgb, show_process_img)
+            plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img)
             if not plane_corners is None:
                 self.cube_image_points[color_detected]=plane_corners
         else:
@@ -87,8 +87,8 @@ class cubeDetector:
                 color_detected, color_rgb = self.__color_detect(masked_image)
                 if color != None and not color_detected == color:
                     continue
-                corner_image =  self.__conner_detect_process(masked_image, color_rgb, show_process_img)
-                plane_corners = self.__largest_plane_detect(corner_image,show_process_img)
+                corner_image,corner_points =  self.__conner_detect_process(masked_image, color_rgb, show_process_img)
+                plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img)
                 if not plane_corners is None:
                     self.cube_image_points[color_detected]=plane_corners
         return self.output_img
@@ -161,6 +161,7 @@ class cubeDetector:
             gpu_img = cv2.cuda.GpuMat()
             gpu_img.upload(gray)
             gpu_img = cv2.cuda.bilateralFilter(gpu_img, 40, 10, 20)
+            gray = gpu_img.download()
             # sobel算子偵測邊緣
             sobel_x = self.sobelFilterX.apply(gpu_img).download()
             sobel_y = self.sobelFilterY.apply(gpu_img).download()
@@ -241,9 +242,11 @@ class cubeDetector:
                 approx_image = cv2.polylines(approx_image, [approx_points], isClosed, (255), 2)
 
         # 將打包的多邊形端點整理校正位置，首項為校正後的多邊形，次項為校正後的各個座標點
-        correct_approx_points_pack, update_points = correct_coordinates(
+        correct_approx_points_pack, updated_points = correct_coordinates(
             approx_points_pack, epsilon=epsilon_outer
         )
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+        updated_points=cv2.cornerSubPix(gray,np.float32(list(updated_points)),(5,5),(-1,-1),criteria)
 
     
         correct_approx_image = np.zeros(
@@ -254,8 +257,9 @@ class cubeDetector:
                 correct_approx_image, [correct_approx_points], isClosed, (255), 2
             )
 
-        for point in update_points:
-            x, y = point
+        for point in updated_points:
+            print(point)
+            x, y = point.astype(int)
             cv2.circle(masked_image, (x, y), 5, color_rgb, -1)
             x = int(x / self.box_scale) + self.x1
             y = int(y / self.box_scale) + self.y1
@@ -272,9 +276,9 @@ class cubeDetector:
             cv2.imshow("correct approx", correct_approx_image)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
-        return correct_approx_image
+        return correct_approx_image,updated_points
     
-    def __largest_plane_detect(self,corner_image,show_img_process=False):
+    def __largest_plane_detect(self,corner_image,corner_points,show_img_process=False):
         max_contour = None
         max_area = 0
         contours,_ = cv2.findContours(corner_image,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
