@@ -145,7 +145,7 @@ class cubeDetector:
 
 
     def __conner_detect_process(self, masked_image, color_rgb, show_img_process):
-        cv2.convertScaleAbs(masked_image, masked_image, 1, 25)  # 畫面亮度調亮
+        cv2.convertScaleAbs(masked_image, masked_image, 1, 50)  # 畫面亮度調亮
         if not self.isCudaSupport:
             cv2.detailEnhance(masked_image, masked_image, 10, 0.1)  # 強化細節 0.1效果超好，可是算很久
         gray = cv2.cvtColor(masked_image, cv2.COLOR_BGR2GRAY)
