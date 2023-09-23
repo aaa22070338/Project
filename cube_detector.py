@@ -12,6 +12,8 @@ def correct_coordinates(approx_points_pack, epsilon):
     )
     # 做兩次凝聚相鄰座標點
     all_points = merge_close_points(all_points, 3.5 * epsilon, iter=2)
+    if all_points is None:
+        return None,None
     update_points = set(tuple(point) for point in all_points)
     # 更新舊多邊形端點座標成距離最近的凝聚座標點，並且紀錄有被更新到的座標點
     for approx_points in approx_points_pack:
@@ -30,6 +32,8 @@ def merge_close_points(coordinates, threshold_distance, iter):
     merged_points = []
     # 進行最近鄰查詢，找到接近的點
     for i in range(iter):
+        if len(coordinates)==0:
+            return None
         kdtree = cKDTree(coordinates)
         merged_points = []
         visited_points = set()
@@ -66,7 +70,7 @@ class cubeDetector:
         self.output_img = img.copy()
         self.cube_image_points={}
         results = self.model(self.img)[0]
-        if results.boxes is None:
+        if results.boxes is None or results.masks is None:
             print("cube not found")
             return self.output_img
         if index != None:
@@ -78,6 +82,8 @@ class cubeDetector:
                 print(f"index {index} is not {color}!")
                 return self.output_img
             corner_image,corner_points = self.__conner_detect_process(masked_image, color_rgb, show_process_img)
+            if corner_image is None:
+                return self.output_img
             plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img)
             if not plane_corners is None:
                 self.cube_image_points[color_detected]=plane_corners
@@ -88,6 +94,8 @@ class cubeDetector:
                 if color != None and not color_detected == color:
                     continue
                 corner_image,corner_points =  self.__conner_detect_process(masked_image, color_rgb, show_process_img)
+                if corner_image is None:
+                    return self.output_img
                 plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img)
                 if not plane_corners is None:
                     self.cube_image_points[color_detected]=plane_corners
@@ -233,8 +241,10 @@ class cubeDetector:
             epsilon = 0.02 * cv2.arcLength(contour, isClosed)
             approx_points = cv2.approxPolyDP(contour, epsilon, isClosed)
             approx_points_pack.append(approx_points)
+            
         if len(approx_points_pack)==0:
             return None,None
+            
         if show_img_process:
             approx_image = np.zeros(
                 (masked_image.shape[0], masked_image.shape[1]), dtype=np.uint8
@@ -246,6 +256,8 @@ class cubeDetector:
         correct_approx_points_pack, updated_points = correct_coordinates(
             approx_points_pack, epsilon=epsilon_outer
         )
+        if correct_approx_points_pack is None:
+            return None,None
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
         updated_points=cv2.cornerSubPix(gray,np.float32(list(updated_points)),(5,5),(-1,-1),criteria)
 
