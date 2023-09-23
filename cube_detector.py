@@ -65,7 +65,7 @@ class cubeDetector:
             self.sobelFilterY = cv2.cuda.createSobelFilter(0, cv2.CV_32F, 0, 1, 3)
             self.cannyDetector = cv2.cuda.createCannyEdgeDetector(15, 100)
     
-    def detect(self, img:cv2.UMat, index:int|None=None, color: str | None= None, show_process_img=False):
+    def detect(self, img:cv2.UMat, index:int|None=None, color: str | None= None, show_process_img=False,show_text=True):
         self.img = img
         self.output_img = img.copy()
         self.cube_image_points={}
@@ -84,7 +84,7 @@ class cubeDetector:
             corner_image,corner_points = self.__conner_detect_process(masked_image, color_rgb, show_process_img)
             if corner_image is None:
                 return self.output_img
-            plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img)
+            plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img,show_text)
             if not plane_corners is None:
                 self.cube_image_points[color_detected]=plane_corners
         else:
@@ -96,7 +96,7 @@ class cubeDetector:
                 corner_image,corner_points =  self.__conner_detect_process(masked_image, color_rgb, show_process_img)
                 if corner_image is None:
                     return self.output_img
-                plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img)
+                plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img,show_text)
                 if not plane_corners is None:
                     self.cube_image_points[color_detected]=plane_corners
         return self.output_img
@@ -241,7 +241,7 @@ class cubeDetector:
             epsilon = 0.02 * cv2.arcLength(contour, isClosed)
             approx_points = cv2.approxPolyDP(contour, epsilon, isClosed)
             approx_points_pack.append(approx_points)
-            
+
         if len(approx_points_pack)==0:
             return None,None
             
@@ -293,7 +293,7 @@ class cubeDetector:
             cv2.destroyAllWindows()
         return correct_approx_image,updated_points
     
-    def __largest_plane_detect(self,corner_image,corner_points,show_img_process=False):
+    def __largest_plane_detect(self,corner_image,corner_points,show_img_process=False,show_text=True):
         if corner_image is None or corner_points is None:
             return None
 
@@ -312,8 +312,6 @@ class cubeDetector:
         contours = [contour for contour in contours if len(cv2.approxPolyDP(contour, 0.04 * cv2.arcLength(contour, True), True)) == 4]        
         contours_approx = [contour_approx for contour_approx in [cv2.approxPolyDP(contour, 0.04 * cv2.arcLength(contour, True), True) for contour in contours ] if len(contour_approx)==4]
 
-        # print([cv2.contourArea(contour) for contour in contours_approx])
-        # print([contour for contour in contours_approx])
         cube_coordinates=[]
         if len(contours_approx) == 0 :
             return None
@@ -326,7 +324,8 @@ class cubeDetector:
             point[0]=point[0]/self.box_scale+self.x1
             point[1] = point[1]/self.box_scale+self.y1
             cube_coordinates.append(point)
-            cv2.putText(self.output_img, f"{coordinate}", list(np.intp(point)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            if show_text:
+                cv2.putText(self.output_img, f"{coordinate}", list(np.intp(point)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
         if contours!=[]:
             cv2.fillPoly(contour_image, [contours[0]], (255, 0, 0))  # 使用蓝色 (BGR格式)
