@@ -78,6 +78,8 @@ class cubeDetector:
             box = results.boxes[index]
             mask = results.masks[index]
             masked_image = self.__cube_object_detect(mask, box)
+            if masked_image is None:
+                return self.output_img
             color_detected, color_rgb = self.__color_detect(masked_image)
             if color != None and not color_detected == color:
                 print(f"index {index} is not {color}!")
@@ -91,19 +93,21 @@ class cubeDetector:
         else:
             for box, mask in zip(results.boxes, results.masks):
                 masked_image = self.__cube_object_detect(mask, box)
+                if masked_image is None:
+                    continue
                 color_detected, color_rgb = self.__color_detect(masked_image)
                 if color != None and not color_detected == color:
                     continue
                 corner_image,corner_points =  self.__conner_detect_process(masked_image, color_rgb, show_process_img)
                 if corner_image is None:
-                    return self.output_img
+                    continue
                 plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img,show_text)
                 if not plane_corners is None:
                     self.cube_image_points[color_detected]=plane_corners
         return self.output_img
     
     def get_cube_largest_surface_imagePoints(self,color):
-        return self.cube_image_points[color]
+        return self.cube_image_points[color] if not self.cube_image_points[color] is None else None
     
     def __cube_object_detect(self, mask, box):
         height = self.img.shape[0]
@@ -112,15 +116,15 @@ class cubeDetector:
         contour_outer[:,:,0]=contour_outer[:,:,0]*width
         contour_outer[:,:,1]=contour_outer[:,:,1]*height
         segment = np.zeros((height,width), dtype=np.uint8)
+        if np.any(contour_outer is None):
+            return None
         segment = cv2.drawContours(segment,contour_outer.astype(int),-1, 255, -1)
         masked_image = cv2.bitwise_and(self.img, self.img, mask=segment)
-        # masked_image = self.img
         indices = np.where(segment != 0)
         self.y1, self.y2 = min(indices[0]), max(indices[0])
         self.x1, self.x2 = min(indices[1]), max(indices[1])
         masked_image = masked_image[self.y1:self.y2, self.x1:self.x2]
         self.contour_outer=contour_outer
-        # print(self.contour_outer.shape,contour_outer.shape,contour_outer[:,:0]-self.x1,self.x1)
         self.box_scale = self.processing_height / masked_image.shape[0]
         self.contour_outer[:,:,0]=(contour_outer[:,:,0]-self.x1)*self.box_scale
         self.contour_outer[:,:,1]=(contour_outer[:,:,1]-self.y1)*self.box_scale
@@ -166,22 +170,23 @@ class cubeDetector:
         border_masked_image=np.vstack((border_masked_image,np.zeros((border,border_masked_image.shape[1],3),dtype=np.uint8)))
         border_masked_image=np.vstack((np.zeros((border,border_masked_image.shape[1],3),dtype=np.uint8),border_masked_image))
         result2 = self.suface_model(border_masked_image)
-        cv2.imshow("plot",result2[0].plot())
         masks = result2[0].masks
+        boxes = result2[0].boxes
         if masks is None :
             return None,None
         isClosed = True
-        epsilon_outer = 0.01 * cv2.arcLength(self.contour_outer, isClosed)
+        epsilon_outer = 0.015 * cv2.arcLength(self.contour_outer, isClosed)
         contours=[self.contour_outer.copy().astype(int)]
         approx_points_pack = [cv2.approxPolyDP(self.contour_outer,epsilon_outer,isClosed)]
-        for mask in masks:
-            
+        for mask,box in zip(masks,boxes):
+            if box.conf.cpu() <0.8:
+                continue
             contour = np.array(mask.xyn)
             contour[:,:,0]=contour[:,:,0]*border_masked_image.shape[1]-border
             contour[:,:,1]=contour[:,:,1]*border_masked_image.shape[0]-border
 
             contours.append(contour.astype(int))
-            epsilon = 0.02 * cv2.arcLength(contour,isClosed)
+            epsilon = 0.025 * cv2.arcLength(contour,isClosed)
             approx_points = cv2.approxPolyDP(contour,epsilon,isClosed)
             approx_points_pack.append(approx_points)
 
@@ -192,7 +197,7 @@ class cubeDetector:
             if np.any(contours is None):
                 contour_image = cv2.drawContours(contour_image, contours, -1, (0, 0, 255), 1)
 
-        if len(approx_points_pack)==1:
+        if len(approx_points_pack)==1 or np.any(approx_points_pack is None):
             return None,None
             
         if show_img_process:
