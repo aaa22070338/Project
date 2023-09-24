@@ -110,8 +110,8 @@ class cubeDetector:
         return self.cube_image_points[color] if not self.cube_image_points[color] is None else None
     
     def __cube_object_detect(self, mask, box):
-        height = self.img.shape[0]
-        width = self.img.shape[1]
+        height,width = self.img.shape[:2]
+        
         contour_outer = np.array(mask.xyn)
         contour_outer[:,:,0]=contour_outer[:,:,0]*width
         contour_outer[:,:,1]=contour_outer[:,:,1]*height
@@ -215,7 +215,7 @@ class cubeDetector:
             return None,None
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
         gray = cv2.cvtColor(masked_image, cv2.COLOR_BGR2GRAY)
-        # updated_points=cv2.cornerSubPix(gray,np.float32(list(updated_points)),(5,5),(-1,-1),criteria)
+        # updated_points=cv2.cornerSubPix(gray,np.float32(list(updated_points)),(3,3),(-1,-1),criteria)
         updated_points = np.float32(list(updated_points))
         correct_approx_image = np.zeros(
             (masked_image.shape[0], masked_image.shape[1]), dtype=np.uint8
