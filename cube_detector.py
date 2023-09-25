@@ -95,14 +95,14 @@ class cubeDetector:
                     continue
                 corner_image,corner_points =  self.__conner_detect_process(masked_image, color_rgb, show_process_img)
                 if corner_image is None:
-                    return self.output_img
+                    continue
                 plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img,show_text)
                 if not plane_corners is None:
                     self.cube_image_points[color_detected]=plane_corners
         return self.output_img
     
     def get_cube_largest_surface_imagePoints(self,color):
-        return self.cube_image_points[color]
+        return self.cube_image_points.get(color, None)
     
     def __cube_object_detect(self, mask, box):
         height = self.img.shape[0]

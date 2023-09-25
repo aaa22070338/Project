@@ -70,6 +70,7 @@ class cubeDetector:
         self.img = img
         self.output_img = img.copy()
         self.cube_image_points={}
+        self.cube_contour_outer={}
         cube_results = self.model(self.img)[0]
         # surface_results = self.suface_model(self.img)[0]
         if cube_results.boxes is None or cube_results.masks is None:
@@ -109,6 +110,8 @@ class cubeDetector:
     
     def get_cube_largest_surface_imagePoints(self,color):
         return self.cube_image_points.get(color, None)
+    def get_cube_contour_outer(self,color):
+        return self.cube_contour_outer.get(color, None)
     
     def __cube_object_detect(self, mask, box):
         height,width = self.img.shape[:2]
@@ -154,6 +157,7 @@ class cubeDetector:
             pixel_counts[color_name] = cv2.countNonZero(mask)
 
         max_color = max(pixel_counts, key=pixel_counts.get)  # type: ignore
+        self.cube_contour_outer[max_color]=self.contour_outer
         return max_color, color_dict[max_color]
 
 
@@ -166,7 +170,6 @@ class cubeDetector:
             return None,None
         isClosed = True
         epsilon_outer = 0.015 * cv2.arcLength(self.contour_outer, isClosed)
-        M_outer = cv2.moments(self.contour_outer)
         contours=[self.contour_outer.copy().astype(int)]
         approx_points_pack = [cv2.approxPolyDP(self.contour_outer,epsilon_outer,isClosed)]
         for mask,box in zip(masks,boxes):
@@ -177,11 +180,11 @@ class cubeDetector:
             contour[:,:,1]=contour[:,:,1]*masked_image.shape[0]
             M = cv2.moments(contour)
             if M["m00"] != 0:
-                centerX = int(M["m10"] / M["m00"])
-                centerY = int(M["m01"] / M["m00"])
+                centroid_X = int(M["m10"] / M["m00"])# 算形心x
+                centroid_Y = int(M["m01"] / M["m00"])# 算形心y
             else:
                 continue
-            test_result = cv2.pointPolygonTest(self.contour_outer, (centerX, centerY), False)
+            test_result = cv2.pointPolygonTest(self.contour_outer, (centroid_X, centroid_Y), False) # 計算重心是否位於方塊輪廓內部
             if test_result<=0:
                 continue
             contours.append(contour.astype(int))
@@ -266,14 +269,14 @@ class cubeDetector:
         cube_coordinates=[]
         if len(contours_approx) == 0 :
             return None
-        for point, coordinate in zip(contours_approx[0],[(0,0,0),(0,1,0),(1,1,0),(1,0,0)]):
+        coordinates=[(0,0,0),(0,1,0),(1,1,0),(1,0,0)] if cv2.contourArea(contours_approx[0],True)>0 else [(0,0,0),(1,0,0),(1,1,0),(0,1,0)]
+            
+        for point, coordinate in zip(contours_approx[0],coordinates):
 
             target_point = np.array(point)
             distances = np.linalg.norm(corner_points - target_point, axis=1)
             nearest_index = np.argmin(distances)
             point = corner_points[nearest_index]
-            # point[0]=point[0]/self.box_scale+self.x1
-            # point[1] = point[1]/self.box_scale+self.y1
             cube_coordinates.append(point)
             if show_text:
                 cv2.putText(self.output_img, f"{coordinate}", list(np.intp(point)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
