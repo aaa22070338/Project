@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 from scipy.spatial import cKDTree
+import copy
 
 def correct_coordinates(approx_points_pack, epsilon):
     correct_approx_points_pack = []
@@ -12,6 +13,7 @@ def correct_coordinates(approx_points_pack, epsilon):
     )
     # 做兩次凝聚相鄰座標點
     all_points = merge_close_points(all_points, 3.5 * epsilon, iter=2)
+    # print(all_points)
     if all_points is None:
         return None,None
     update_points = set(tuple(point) for point in all_points)
@@ -169,9 +171,9 @@ class cubeDetector:
         if masks is None :
             return None,None
         isClosed = True
-        epsilon_outer = 0.015 * cv2.arcLength(self.contour_outer, isClosed)
+        self.epsilon_outer = 0.015 * cv2.arcLength(self.contour_outer, isClosed)
         contours=[self.contour_outer.copy().astype(int)]
-        approx_points_pack = [cv2.approxPolyDP(self.contour_outer,epsilon_outer,isClosed)]
+        approx_points_pack = [cv2.approxPolyDP(self.contour_outer,self.epsilon_outer,isClosed)]
         for mask,box in zip(masks,boxes):
             if box.conf.cpu() <0.8:
                 continue
@@ -211,7 +213,7 @@ class cubeDetector:
 
         # 將打包的多邊形端點整理校正位置，首項為校正後的多邊形，次項為校正後的各個座標點
         correct_approx_points_pack, updated_points = correct_coordinates(
-            approx_points_pack, epsilon=epsilon_outer
+            approx_points_pack, epsilon=self.epsilon_outer
         )
         if correct_approx_points_pack is None:
             return None,None
@@ -265,12 +267,27 @@ class cubeDetector:
 
         contours = [contour for contour in contours if len(cv2.approxPolyDP(contour, 0.04 * cv2.arcLength(contour, True), True)) == 4]        
         contours_approx = [contour_approx for contour_approx in [cv2.approxPolyDP(contour, 0.04 * cv2.arcLength(contour, True), True) for contour in contours ] if len(contour_approx)==4]
+        # 抓相交角點
+        if len(contours_approx)>1:
+            _ , intersect_corners = correct_coordinates(copy.deepcopy(contours_approx),self.epsilon_outer)
+            intersect_corners = np.array([[point] for point in intersect_corners])
+            print(intersect_corners)
+        # 判斷相交角點與近似輪廓的交點
+            if len(intersect_corners)>1:
+                for contour in contours_approx:
+                    print(f"{len(contour)=}")
+                    for point in intersect_corners:
+                        distances = np.linalg.norm(contour.reshape(4,2) - point, axis=1)
+                        nearest_index = np.argmin(distances)
+                        print(f"{nearest_index=}")
+
+
 
         cube_coordinates=[]
         if len(contours_approx) == 0 :
             return None
         coordinates=[(0,0,0),(0,1,0),(1,1,0),(1,0,0)] if cv2.contourArea(contours_approx[0],True)>0 else [(0,0,0),(1,0,0),(1,1,0),(0,1,0)]
-            
+
         for point, coordinate in zip(contours_approx[0],coordinates):
 
             target_point = np.array(point)
