@@ -274,14 +274,19 @@ class cubeDetector:
             print(intersect_corners)
         # 判斷相交角點與近似輪廓的交點
             if len(intersect_corners)>1:
+                tourched_contours_points=[]
                 for contour in contours_approx:
-                    print(f"{len(contour)=}")
-                    for point in intersect_corners:
-                        distances = np.linalg.norm(contour.reshape(4,2) - point, axis=1)
-                        nearest_index = np.argmin(distances)
-                        print(f"{nearest_index=}")
-
-
+                    contour = contour.reshape(4,2)
+                    distances = np.linalg.norm(contour - intersect_corners[0], axis=1)
+                    if np.all(distances>5):
+                        continue
+                    target_index = np.where(distances<5)[0]
+                    contour = np.roll(contour, - target_index,axis=1)
+                    if len(tourched_contours_points)==0:
+                        tourched_contours_points.append(contour[0])
+                    elif len(tourched_contours_points)==4:
+                        tourched_contours_points.append(contour[0][1:3])
+                        return np.array(tourched_contours_points)
 
         cube_coordinates=[]
         if len(contours_approx) == 0 :
