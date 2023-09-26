@@ -254,6 +254,7 @@ class cubeDetector:
         if corner_image is None or corner_points is None:
             return None
 
+        # 抓修正後的方塊圖，掃描內外輪廓，去除外輪廓得到各個面的面輪廓，並依據面積大小進行排序
         contours,_ = cv2.findContours(corner_image,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         contours = contours[1:]
         contours = sorted(contours,key=cv2.contourArea,reverse=True)
@@ -265,52 +266,68 @@ class cubeDetector:
             contour_image, contours, -1, (0, 0, 255), 1
         )
 
-        contours = [contour for contour in contours if len(cv2.approxPolyDP(contour, 0.04 * cv2.arcLength(contour, True), True)) == 4]        
+        # 抓出近似四邊形後的輪廓
         contours_approx = [contour_approx for contour_approx in [cv2.approxPolyDP(contour, 0.04 * cv2.arcLength(contour, True), True) for contour in contours ] if len(contour_approx)==4]
-        # 抓相交角點
-        if len(contours_approx)>1:
-            _ , intersect_corners = correct_coordinates(copy.deepcopy(contours_approx),self.epsilon_outer)
-            intersect_corners = np.array([[point] for point in intersect_corners])
-            print(intersect_corners)
-        # 判斷相交角點與近似輪廓的交點
-            if len(intersect_corners)>1:
-                tourched_contours_points=np.empty(1,2)
-                for contour in contours_approx:
-                    contour = contour.reshape(4,2)
-                    distances = np.linalg.norm(contour - intersect_corners[0], axis=1)
-                    if np.all(distances>5):
-                        continue
-                    target_index = np.where(distances<5)[0]
-                    print(target_index)
-                    contour = np.roll(contour, - target_index,axis=1)
-                    if tourched_contours_points.shape[0]==0:
-                        # tourched_contours_points.append(contour.flatten)
-                        tourched_contours_points = np.vstack(tourched_contours_points,contour)
-                        print(tourched_contours_points.shape)
-                    elif tourched_contours_points.shape[0]==4:
-                        print("imhere")
-                        # tourched_contours_points.append(contour[2:,:])
-                        tourched_contours_points = np.vstack(tourched_contours_points,contour[2:,:])
-                        print(tourched_contours_points)
-                        return np.array(tourched_contours_points)
-
-        cube_coordinates=[]
+        # 確認面輪廓是否存在
         if len(contours_approx) == 0 :
             return None
-        coordinates=[(0,0,0),(0,1,0),(1,1,0),(1,0,0)] if cv2.contourArea(contours_approx[0],True)>0 else [(0,0,0),(1,0,0),(1,1,0),(0,1,0)]
+        # 若只有一個四角面輪廓則使用四點座標標定法，否則六點座標標定
+        if len(contours_approx)>1:
+            # 抓面兩輪廓間交點
+            _ , contour_touch_points = correct_coordinates(copy.deepcopy(contours_approx),self.epsilon_outer)
+            contour_touch_points = np.array([[point] for point in contour_touch_points])
+        
+            if len(contour_touch_points)>1:
+                # 創建空陣列準備紀錄座標順序
+                draw_squence_points=np.empty((0,2))
+                for contour in contours_approx:
+                    contour = contour.reshape(4,2)
+                    distances = np.linalg.norm(contour - contour_touch_points[0], axis=1)
+                    # 透過距離找尋與輪廓接觸點接觸的輪廓
+                    if np.all(distances>5):
+                        continue
+                    # 找哪個點與輪廓接觸，找出他的索引，平移陣列順序使該接觸點作為原點
+                    target_index = np.where(distances<5)[0]
+                    contour = np.roll(contour, - target_index,axis=0)
+                    # 判斷座標順序紀錄狀況，若無則四點個作為座標，前四個點，若已經繪製四個點則紀錄倒數兩個點
+                    if draw_squence_points.shape[0]==0:
+                        draw_squence_points = np.vstack((draw_squence_points,contour))
+                    elif draw_squence_points.shape[0]==4:
+                        draw_squence_points = np.vstack((draw_squence_points,contour[2:,:]))
 
+                        # 量測第二個點與第六個點是否座標一樣
+                        distance = np.linalg.norm(draw_squence_points[1]-draw_squence_points[5])
+                        if distance <10:
+                            # 一樣的話前四個左標點就順時針調換一次順序，後兩個改成抓該輪廓第二第三個座標點
+                            draw_squence_points[:4,:] = np.roll(draw_squence_points[:4,:],-1,axis=0)
+                            draw_squence_points[4:,:] = contour[1:3,:]
+                        # 將標點情況繪製於圖像，方便檢查
+                        for i , point in enumerate(draw_squence_points):
+                            cv2.putText(self.output_img, f"{i}", list(np.intp(point)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
+                        
+                        # 真正的角點為前面抓角點處理所得到的角點，所以將紀錄座標更新成最接近的角點
+                        closest_indices = np.argmin(np.linalg.norm(draw_squence_points[:, np.newaxis, :] - corner_points, axis=2), axis=1)
+                        draw_squence_points = corner_points[closest_indices]
+                        
+                        return np.array(draw_squence_points)
+                    
+        # 四點，面座標標定，當無法檢測到六點位置時使用
+        cube_coordinates=[]
+        coordinates=[(0,0,0),(0,1,0),(1,1,0),(1,0,0)]
         for point, coordinate in zip(contours_approx[0],coordinates):
-
+            # 真正的角點為前面抓角點處理所得到的角點，所以將紀錄座標更新成最接近的角點
             target_point = np.array(point)
             distances = np.linalg.norm(corner_points - target_point, axis=1)
             nearest_index = np.argmin(distances)
             point = corner_points[nearest_index]
             cube_coordinates.append(point)
+            # 將標點情況繪製於圖像，方便檢查
             if show_text:
                 cv2.putText(self.output_img, f"{coordinate}", list(np.intp(point)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
         if contours!=[]:
-            cv2.fillPoly(contour_image, [contours[0]], (255, 0, 0))  # 使用蓝色 (BGR格式)
+            # 顯示最大方塊塊輪廓面
+            cv2.fillPoly(contour_image, [contours[0]], (255, 0, 0)) 
             contour_image = cv2.drawContours(
                     contour_image, contours, -1, (0, 0, 255), 1
                 ) 
@@ -319,7 +336,6 @@ class cubeDetector:
             # cv2.waitKey(0)
         cube_coordinates = np.array(cube_coordinates)
         return cube_coordinates
-
 
 if __name__ == "__main__":
     pass
