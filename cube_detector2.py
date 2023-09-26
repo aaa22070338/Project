@@ -283,11 +283,11 @@ class cubeDetector:
                     target_index = np.where(distances<5)[0]
                     print(target_index)
                     contour = np.roll(contour, - target_index,axis=1)
-                    if len(tourched_contours_points)==0:
+                    if tourched_contours_points.shape[0]==0:
                         # tourched_contours_points.append(contour.flatten)
                         tourched_contours_points = np.vstack(tourched_contours_points,contour)
                         print(tourched_contours_points.shape)
-                    elif len(tourched_contours_points)==4:
+                    elif tourched_contours_points.shape[0]==4:
                         print("imhere")
                         # tourched_contours_points.append(contour[2:,:])
                         tourched_contours_points = np.vstack(tourched_contours_points,contour[2:,:])
