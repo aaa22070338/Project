@@ -15,46 +15,41 @@ class CubeDetector:
         self.output_img = img.copy()
         self.cube_image_points={}
         self.cube_contour_outer={}
+        self.finding_color = color
+        self.show_img_process=show_process_img
+        self.show_text = show_text
+
         cube_results = self.model(self.img)[0]
+
         if cube_results.boxes is None or cube_results.masks is None:
             print("cube not found")
             return self.output_img
-        if index != None:
+        
+        if index is not None:
             box = cube_results.boxes[index]
             mask = cube_results.masks[index]
-            try:
-                masked_image = self.__cube_object_detect(mask, box)
-                if masked_image is None:
-                    return self.output_img
-                color_detected, color_rgb = self.__color_detect(masked_image)
-                if color != None and not color_detected == color:
-                    print(f"index {index} is not {color}!")
-                    return self.output_img
-                corner_image,corner_points = self.__conner_detect_process(masked_image, color_rgb, show_process_img)
-                if corner_image is None:
-                    return self.output_img
-                plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img,show_text)
-                if not plane_corners is None:
-                    self.cube_image_points[color_detected]=plane_corners
-            except DetectError as e:
-                return self.output_img
-        else:
-            for box, mask in zip(cube_results.boxes, cube_results.masks):
-                try:
-                    masked_image = self.__cube_object_detect(mask, box)
-                    color_detected, color_rgb = self.__color_detect(masked_image)
-                    if color != None and not color_detected == color:
-                        continue
-                    corner_image,corner_points =  self.__conner_detect_process(masked_image, color_rgb, show_process_img)
-                    plane_corners = self.__largest_plane_detect(corner_image,corner_points,show_process_img,show_text)
-                    self.cube_image_points[color_detected]=plane_corners
-                except DetectError as e:
-                    print(e)
-                    continue
+            self.__detect_process(mask,box)
+            return self.output_img
+            
+        for box, mask in zip(cube_results.boxes, cube_results.masks):
+            self.__detect_process(mask,box)
         return self.output_img
     
+    def __detect_process(self,mask,box):
+        try:
+            masked_image = self.__cube_object_detect(mask, box)
+            color_detected, color_rgb = self.__color_detect(masked_image)
+            if self.finding_color != None and not color_detected == self.finding_color:
+                raise DetectError("未偵測到所要搜尋顏色")
+            corner_image,corner_points =  self.__conner_detect(masked_image, color_rgb, self.show_img_process)
+            plane_corners = self.__largest_plane_detect(corner_image,corner_points,self.show_img_process,self.show_text)
+            self.cube_image_points[color_detected]=plane_corners
+        except DetectError as Error:
+            print(Error)
+
     def get_cube_sequence_imagePoints(self,color):
         return self.cube_image_points.get(color, None)
+    
     def get_cube_contour_outer(self,color):
         return self.cube_contour_outer.get(color, None)
     
@@ -107,12 +102,11 @@ class CubeDetector:
             raise DetectError("無法判斷顏色")
         return max_color, color_dict[max_color]
 
-    def __conner_detect_process(self, masked_image, color_rgb, show_img_process):
+    def __conner_detect(self, masked_image, color_rgb, show_img_process):
         result2 = self.suface_model(self.img)
         masks = result2[0].masks
         boxes = result2[0].boxes
         if masks is None :
-            # return None,None
             raise DetectError("[面]輪廓模型偵測失敗")
         isClosed = True
         self.epsilon_outer = 0.015 * cv2.arcLength(self.contour_outer, isClosed)
@@ -145,7 +139,6 @@ class CubeDetector:
             contour_image = cv2.drawContours(contour_image, contours, -1, (0, 0, 255), 1)
 
         if len(approx_points_pack)==1 or np.any(approx_points_pack is None):
-            # return None,None
             raise DetectError("[面]輪廓抓取近似多邊形失敗")
         if show_img_process:
             approx_image = np.zeros(
@@ -159,12 +152,8 @@ class CubeDetector:
             approx_points_pack, epsilon=self.epsilon_outer
         )
         if correct_approx_points_pack is None:
-            # return None,None
             raise DetectError("[面]輪廓聚類失敗")
 
-        # criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-        # gray = cv2.cvtColor(masked_image, cv2.COLOR_BGR2GRAY)
-        # updated_points=cv2.cornerSubPix(gray,np.float32(list(updated_points)),(3,3),(-1,-1),criteria)
         updated_points = np.float32(list(updated_points))
         correct_approx_image = np.zeros(
             (masked_image.shape[0], masked_image.shape[1]), dtype=np.uint8

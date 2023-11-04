@@ -1,2 +1,4 @@
 *.jpg
 !test.jpg
+cube_detector/__pycache__
+__pycache__
