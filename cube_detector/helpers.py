@@ -48,3 +48,19 @@ def merge_close_points(coordinates, threshold_distance, iter):
                     merged_points.append((avg_x, avg_y))
         coordinates = merged_points
     return np.int0(merged_points)
+
+def move_to_closest_point(points, target_point,given_range = float('inf')):
+    points = points.reshape(-1,2)
+    print(f"{points=}")
+    distances = np.linalg.norm(points - target_point, axis=1)
+    print(f"{distances=}")
+    nearest_index = np.argmin(distances)
+    if distances[nearest_index] <= given_range:
+        return points[nearest_index]
+    else:
+        return None
+
+class tracker:
+    def __init__(self,traking_point,tracking_range) -> None:
+        self.traking_point = traking_point
+        self.tracking_range = tracking_range

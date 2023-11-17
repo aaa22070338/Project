@@ -1,0 +1,32 @@
+import serial
+import time
+close = 1
+open = 0
+COM='COM8'  #要改COM孔!!!!!!!!!
+def gripMove(cmd,COM):
+    activation_request = serial.to_bytes(
+        [0x09, 0x10, 0x03, 0xE8, 0x00, 0x03, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x73, 0xA9])#A9
+    open_gripper = serial.to_bytes(
+        [0x09, 0x10, 0x03, 0xE8, 0x00, 0x03, 0x06, 0x09, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x72, 0x19])
+    close_gripper = serial.to_bytes(
+        [0x09, 0x10, 0x03, 0xE8, 0x00, 0x03, 0x06, 0x09, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x42, 0x29])
+    close_50p_50v_50f = serial.to_bytes(
+        [0x09, 0x10, 0x03, 0xE8, 0x00, 0x03, 0x06, 0x09, 0x00, 0x00, 0x80,0x80,0x80,0x12,0x21])     #位置、速度、力量、CRC
+    
+    ser = serial.Serial(port=COM, baudrate=115200, timeout=1,
+                        parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
+                        bytesize=serial.EIGHTBITS)
+    
+    ser.write(activation_request)
+    time.sleep(1)
+    if cmd == 1:    
+        ser.write(close_50p_50v_50f)
+        data_raw = ser.readline()
+    elif cmd == 0:
+        ser.write(open_gripper)
+        data_raw = ser.readline()
+gripMove(close,COM)
+print("close")
+gripMove(open,COM)
+print("open")
+

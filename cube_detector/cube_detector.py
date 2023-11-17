@@ -2,7 +2,6 @@ from typing import Literal, TypeAlias
 import cv2
 import numpy as np
 from ultralytics import YOLO
-from scipy.spatial import cKDTree
 import copy
 from cube_detector.helpers import *
 
@@ -13,19 +12,21 @@ class CubeDetector:
         self.model = cube_model
         self.suface_model = cube_surface_model
         self.is_first_frame = False
+        self.tracking_props: dict[ColorType, tracker] = {}
 
     def detect(self, img:cv2.UMat, index:int|None=None, color:ColorType | None= None, show_process_img=False,show_text=True,method:DetectMethod|None=None):
         self.img = img
         self.output_img = img.copy()
-        self.cube_image_points={}
-        self.cube_contour_outer={}
-        self.tracking_point={}
         self.finding_color = color
-        self.show_img_process=show_process_img
-        self.show_text = show_text
         self.detect_method = method
+        self.cube_image_points: dict[ColorType,np.ndarray] = {}
+        self.cube_contour_outer: dict[ColorType,np.ndarray] = {}
+        self.process_color : ColorType | None = None
 
-        cube_results = self.model(self.img)[0]
+        self.show_img_process = show_process_img
+        self.show_text = show_text
+
+        cube_results = self.model(self.img,verbose = False)[0]
 
         if cube_results.boxes is None or cube_results.masks is None:
             print("cube not found")
@@ -43,17 +44,21 @@ class CubeDetector:
     
     def __detect_process(self,mask,box):
         try:
+            # 圖片處理
             masked_image = self.__cube_object_detect(mask, box)
-            color_detected, color_rgb = self.__color_detect(masked_image)
-            if self.finding_color != None and not color_detected == self.finding_color:
+            color_rgb = self.__color_detect(masked_image)
+            if self.finding_color != None and not (self.process_color == self.finding_color):
                 raise DetectError("未偵測到所要搜尋顏色")
             corner_image,corner_points =  self.__conner_detect(masked_image, color_rgb)
             plane_corners = self.__largest_plane_detect(corner_image,corner_points)
 
+            # 儲存處理後狀態
             if box.conf.cpu() > 0.75:
-                self.cube_image_points[color_detected]=plane_corners
-                self.cube_contour_outer[color_detected]=self.contour_outer
-                self.tracking_point[color_detected] = plane_corners[0]
+                self.cube_image_points[self.process_color]=plane_corners
+                self.cube_contour_outer[self.process_color]=self.contour_outer
+                tracking_origin_point= plane_corners[0]
+                tracking_range = 0.5 * np.linalg.norm(plane_corners[0]-plane_corners[1])
+                self.tracking_props[self.process_color] = (tracking_origin_point,tracking_range) # 原點追跡，第一項紀錄原點位置，第二項紀錄掃秒範圍
         except DetectError as Error:
             print(Error)
 
@@ -95,7 +100,7 @@ class CubeDetector:
             "white": (255, 255, 255),  # 白色
         }
         hsv_image = cv2.cvtColor(masked_image, cv2.COLOR_RGB2HSV)
-        max_color = None
+        maximum_pixels_color = None
         pixel_counts = {}
         for color_name, hsv_range in hsv_ranges.items():
             lower_bound = hsv_range[0]
@@ -103,13 +108,14 @@ class CubeDetector:
 
             mask = cv2.inRange(hsv_image, lower_bound, upper_bound)
             pixel_counts[color_name] = cv2.countNonZero(mask)
-        max_color = max(pixel_counts, key=pixel_counts.get)  
-        if max_color is None:
+        maximum_pixels_color = max(pixel_counts, key=pixel_counts.get)
+        if maximum_pixels_color is None:
             raise DetectError("無法判斷顏色")
-        return max_color, color_dict[max_color]
+        self.process_color = maximum_pixels_color
+        return color_dict[maximum_pixels_color]
 
     def __conner_detect(self, masked_image, color_rgb):
-        result2 = self.suface_model(self.img)
+        result2 = self.suface_model(self.img,verbose = False)
         masks = result2[0].masks
         boxes = result2[0].boxes
         if masks is None :
@@ -199,10 +205,20 @@ class CubeDetector:
 
         # 若只有一個四角面輪廓則使用四點座標標定法，否則六點座標標定
         draw_squence_points = None
+        tracking_props = self.tracking_props.get(self.process_color,None)
+            
+
         _ , contour_touch_points = correct_coordinates(copy.deepcopy(contours_approx),self.epsilon_outer)
         if contour_touch_points is not None and len(contour_touch_points)>=1:
-            contour_touch_points = np.array([[point] for point in contour_touch_points])
-            draw_squence_points= self.__grab_six_points(contours_approx,contour_touch_points)
+            contour_touch_points = np.array([point for point in contour_touch_points])
+            if (tracking_props is not None and
+                (origin_point:=move_to_closest_point(contour_touch_points,tracking_props[0],tracking_props[1])) is not None):
+                origin_point=origin_point
+            else:
+                origin_point=contour_touch_points[0]
+
+            # origin_point = tracking_point if tracking_point is not None else contour_touch_points[0]
+            draw_squence_points= self.__grab_six_points(contours_approx,origin_point)
         if draw_squence_points is not None:
             if self.show_text:
                 for i , point in enumerate(draw_squence_points):
@@ -212,7 +228,14 @@ class CubeDetector:
             draw_squence_points = corner_points[closest_indices]
             return np.array(draw_squence_points)
         # 四點，面座標標定，當無法檢測到六點位置時使用
+
         draw_squence_points=[]
+        if (tracking_props is not None and
+            (origin_point:=move_to_closest_point(contours_approx[0],tracking_props[0],tracking_props[1])) is not None):
+            origin_point=origin_point
+        else:
+            origin_point=contours_approx[0][0]
+
         coordinates=[(0,0,0),(0,1,0),(1,1,0),(1,0,0)]
         for point, coordinate in zip(contours_approx[0],coordinates):
             # 真正的角點為前面抓角點處理所得到的角點，所以將紀錄座標更新成最接近的角點
@@ -221,8 +244,6 @@ class CubeDetector:
             # 將標點情況繪製於圖像，方便檢查
             if self.show_text:
                 cv2.putText(self.output_img, f"{coordinate}", list(np.intp(point)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-        print(f"{draw_squence_points=}")
-
         if self.show_img_process:
             contour_image = np.zeros(
                 (corner_image.shape[0], corner_image.shape[1], 3), dtype=np.uint8
@@ -235,7 +256,7 @@ class CubeDetector:
                 cv2.fillPoly(contour_image, [contours[0]], (255, 0, 0)) 
                 contour_image = cv2.drawContours(
                     contour_image, contours, -1, (0, 0, 255), 1
-                ) 
+                )
             cv2.imshow("contour", contour_image)
             # cv2.waitKey(0)
         draw_squence_points = np.array(draw_squence_points)
@@ -244,11 +265,10 @@ class CubeDetector:
 
     def __grab_six_points(self,contours_approx, origin_point):
         # 創建空陣列準備紀錄座標順序
-        #todo
         draw_squence_points=np.empty((0,2))
         for contour in contours_approx:
             contour = contour.reshape(4,2)
-            distances = np.linalg.norm(contour - origin_point[0], axis=1)
+            distances = np.linalg.norm(contour - origin_point, axis=1)
             # 透過距離找尋與輪廓接觸點接觸的輪廓
             if np.all(distances>5):
                 continue
@@ -271,7 +291,6 @@ class CubeDetector:
             draw_squence_points[4:,:] = contour[1:3,:]                    
         return np.array(draw_squence_points)
     
-
 class DetectError(Exception):
     def __init__(self, message):
         super().__init__(message)
