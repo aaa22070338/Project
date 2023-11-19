@@ -56,9 +56,9 @@ class CubeDetector:
             if box.conf.cpu() > 0.75:
                 self.cube_image_points[self.process_color]=plane_corners
                 self.cube_contour_outer[self.process_color]=self.contour_outer
-                tracking_origin_point= plane_corners[0]
-                tracking_range = 0.5 * np.linalg.norm(plane_corners[0]-plane_corners[1])
-                self.tracking_props[self.process_color] = (tracking_origin_point,tracking_range) # 原點追跡，第一項紀錄原點位置，第二項紀錄掃秒範圍
+                # tracking_origin_point= plane_corners[0]
+                # tracking_range = 0.5 * np.linalg.norm(plane_corners[0]-plane_corners[1])
+                # self.tracking_props[self.process_color] = (tracking_origin_point,tracking_range) # 原點追跡，第一項紀錄原點位置，第二項紀錄掃秒範圍
         except DetectError as Error:
             print(Error)
 
@@ -205,17 +205,18 @@ class CubeDetector:
 
         # 若只有一個四角面輪廓則使用四點座標標定法，否則六點座標標定
         draw_squence_points = None
-        tracking_props = self.tracking_props.get(self.process_color,None)
+        # tracking_props = self.tracking_props.get(self.process_color,None)
             
 
         _ , contour_touch_points = correct_coordinates(copy.deepcopy(contours_approx),self.epsilon_outer)
         if contour_touch_points is not None and len(contour_touch_points)>=1:
             contour_touch_points = np.array([point for point in contour_touch_points])
-            if (tracking_props is not None and
-                (origin_point:=move_to_closest_point(contour_touch_points,tracking_props[0],tracking_props[1])) is not None):
-                origin_point=origin_point
-            else:
-                origin_point=contour_touch_points[0]
+            # if (tracking_props is not None and
+            #     (origin_point:=move_to_closest_point(contour_touch_points,tracking_props[0],tracking_props[1])) is not None):
+            #     origin_point=origin_point
+            # else:
+            #     origin_point=contour_touch_points[0]
+            origin_point=contour_touch_points[0]
 
             # origin_point = tracking_point if tracking_point is not None else contour_touch_points[0]
             draw_squence_points= self.__grab_six_points(contours_approx,origin_point)
@@ -230,11 +231,13 @@ class CubeDetector:
         # 四點，面座標標定，當無法檢測到六點位置時使用
 
         draw_squence_points=[]
-        if (tracking_props is not None and
-            (origin_point:=move_to_closest_point(contours_approx[0],tracking_props[0],tracking_props[1])) is not None):
-            origin_point=origin_point
-        else:
-            origin_point=contours_approx[0][0]
+        # if (tracking_props is not None and
+        #     (origin_point:=move_to_closest_point(contours_approx[0],tracking_props[0],tracking_props[1])) is not None):
+        #     origin_point=origin_point
+        # else:
+            # origin_point=contours_approx[0][0]
+        
+        origin_point=contours_approx[0][0]
 
         coordinates=[(0,0,0),(0,1,0),(1,1,0),(1,0,0)]
         for point, coordinate in zip(contours_approx[0],coordinates):
