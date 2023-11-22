@@ -35,7 +35,7 @@ def crc_calculate(pos, velocity, acceleration):
     low_byte = int(hex(current_value)[2:4], 16)
     return high_byte, low_byte
 
-def gripMove(postion,velocity,force,COM):
+def gripMove(postion,velocity,force,COM,sleep_time):
     crc = crc_calculate(postion,velocity,force)
     activation_request = serial.to_bytes(
         [0x09, 0x10, 0x03, 0xE8, 0x00, 0x03, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x73, 0xA9])#A9
@@ -47,6 +47,13 @@ def gripMove(postion,velocity,force,COM):
                         bytesize=serial.EIGHTBITS)
     
     ser.write(activation_request)
-    time.sleep(1)
+    time.sleep(sleep_time)
     ser.write(command)
     # data_raw = ser.readline()
+
+def gripActivate(COM,sleep_time):
+    ser = serial.Serial(port=COM, baudrate=115200, timeout=1,
+                        parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
+                        bytesize=serial.EIGHTBITS)
+    ser.write(serial.to_bytes([0x09,0x10,0x03,0xE8,0x00,0x03,0x06,0x00,0x00,0x00,0x00,0x00,0x00,0x73,0x30]))
+    time.sleep(sleep_time)
