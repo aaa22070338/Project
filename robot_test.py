@@ -13,7 +13,7 @@ c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  #  Initialize the communi
 #  Connect the ethernet cable to the robot electric box first
 c.connect((TCP_IP, TCP_PORT))
 
-arm = bot.robotic_arm(c, gripper_port)
+arm = bot.robotic_arm(gripper_port,c)
 arm.move_to_origin()
 arm.grip_activate()
 arm.grip_move(128, 128, 128)
