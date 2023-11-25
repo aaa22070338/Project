@@ -8,10 +8,15 @@ class robotic_arm:
         self.gripper_port = gripper_port
         self.origin = [500, 200, 600, -180, 0, -60]
         self.position = None
-        self.sleep_time = 1
+        self.arm_sleep_time = 0.05
+        self.gripper_sleep_time = 1
 
-    def set_sleep_time(self, sleep_time):
-        self.sleep_time = sleep_time
+    def set_arm_sleep_time(self, sleep_time):
+        self.arm_sleep_time = sleep_time
+        return self
+    
+    def set_girpper_sleep_time(self, sleep_time):
+        self.gripper_sleep_time = sleep_time
         return self
     
     def move_to(self, position):
@@ -23,7 +28,7 @@ class robotic_arm:
         current_position = receive(self.arm_connection)
         print("夾爪已移動至: ", current_position)
         self.position = current_position
-        time.sleep(self.sleep_time)
+        time.sleep(self.arm_sleep_time)
         return self
 
     def set_origin(self, position):
@@ -41,9 +46,10 @@ class robotic_arm:
             return self
         
         robot_move(self.origin, self.arm_connection)
-        msg = receive(self.arm_connection)
-        print("夾爪已移動至: ", msg)
-        time.sleep(self.sleep_time)
+        current_position  = receive(self.arm_connection)
+        print("夾爪已移動至: ", current_position)
+        self.position = current_position
+        time.sleep(self.arm_sleep_time)
         return self
     
     def stay(self):
@@ -54,7 +60,7 @@ class robotic_arm:
         robot_move(self.position, self.arm_connection)
         msg = receive(self.arm_connection)
         print("夾爪已移動至: ", msg)
-        time.sleep(self.sleep_time)
+        time.sleep(self.arm_sleep_time)
         return self
 
 
@@ -66,23 +72,23 @@ class robotic_arm:
         robot_move([0, 0, 0, 0, 0, 0], self.arm_connection)
         msg = receive(self.arm_connection)
         print("夾爪已移動至: ", msg)
-        time.sleep(self.sleep_time)
+        time.sleep(self.arm_sleep_time)
         return self
 
     def grip_activate(self):
-        gripActivate(self.gripper_port, self.sleep_time)
+        gripActivate(self.gripper_port, self.gripper_sleep_time)
         return self
 
     def grip_move(self, pos, velocity, force):
-        gripMove(pos, velocity, force, self.gripper_port, self.sleep_time)
+        gripMove(pos, velocity, force, self.gripper_port, self.gripper_sleep_time)
         return self
 
     def grip_complete_open(self):
-        gripMove(0, 255, 255, self.gripper_port, self.sleep_time)
+        gripMove(0, 255, 255, self.gripper_port, self.gripper_sleep_time)
         return self
 
     def grip_complete_close(self):
-        gripMove(255, 255, 255, self.gripper_port, self.sleep_time)
+        gripMove(255, 255, 255, self.gripper_port, self.gripper_sleep_time)
         return self
     
     
