@@ -8,10 +8,11 @@ from cube_detector.helpers import *
 ColorType : TypeAlias = Literal['red','blue','green','yellow','white','orange']
 DetectMethod : TypeAlias = Literal['tracking']
 class CubeDetector:
-    def __init__(self, cube_model:YOLO,cube_surface_model:YOLO) -> None:
+    def __init__(self, cube_model:YOLO,cube_surface_model:YOLO,cam_type:str) -> None:
         self.model = cube_model
         self.suface_model = cube_surface_model
         self.is_first_frame = False
+        self.cam_type = cam_type
         self.tracking_props: dict[ColorType, tracker] = {}
 
     def detect(self, img:cv2.UMat, index:int|None=None, color:ColorType | None= None, show_process_img=False,show_text=True,method:DetectMethod|None=None):
@@ -84,20 +85,20 @@ class CubeDetector:
 
     def __color_detect(self, masked_image):
         hsv_ranges = {
-            "white": np.array([[0, 15, 200], [75, 70, 255]], dtype=np.uint8),
-            "red": np.array([[122, 63, 56], [132, 255, 255]], dtype=np.uint8),
-            "orange": np.array([[100, 40, 170], [120, 255, 255]], dtype=np.uint8),
-            "yellow": np.array([[80, 90, 100], [100, 255, 255]], dtype=np.uint8),
-            "green": np.array([[50, 150, 60], [80, 210, 200]], dtype=np.uint8),
-            "blue": np.array([[0, 70, 25], [40, 255, 210]], dtype=np.uint8),
+            "purple": np.array([[110, 50, 45], [125, 130, 239]], dtype=np.uint8),
+            "red": np.array([[0, 80, 120], [20, 255, 255]], dtype=np.uint8),
+            "yellow": np.array([[26, 160, 80], [50, 255, 255]], dtype=np.uint8),
+            "green": np.array([[50, 120, 30], [75, 255, 255]], dtype=np.uint8),
+            "blue": np.array([[75, 0, 0], [124, 255, 43]], dtype=np.uint8),
+        } if self.cam_type =="fixed" else {
+            
         }
         color_dict = {
             "red": (0, 0, 255),  # 红色
-            "orange": (0, 165, 255),  # 橘色
             "yellow": (0, 255, 255),  # 黄色
             "green": (0, 128, 0),  # 綠色
             "blue": (255, 0, 0),  # 藍色
-            "white": (255, 255, 255),  # 白色
+            "purple": (255, 255, 255),  # 紫色
         }
         hsv_image = cv2.cvtColor(masked_image, cv2.COLOR_RGB2HSV)
         maximum_pixels_color = None
