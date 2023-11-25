@@ -10,6 +10,10 @@ class robotic_arm:
         self.position = None
         self.sleep_time = 1
 
+    def set_sleep_time(self, sleep_time):
+        self.sleep_time = sleep_time
+        return self
+    
     def move_to(self, position):
         if self.arm_connection is None:
             print("請先連接到夾爪")
@@ -22,7 +26,7 @@ class robotic_arm:
         time.sleep(self.sleep_time)
         return self
 
-    def setup_origin(self, position):
+    def set_origin(self, position):
         if self.arm_connection is None:
             print("請先連接到夾爪")
             return self
@@ -41,6 +45,18 @@ class robotic_arm:
         print("夾爪已移動至: ", msg)
         time.sleep(self.sleep_time)
         return self
+    
+    def stay(self):
+        if self.arm_connection is None:
+            print("請先連接到夾爪")
+            return self
+        
+        robot_move(self.position, self.arm_connection)
+        msg = receive(self.arm_connection)
+        print("夾爪已移動至: ", msg)
+        time.sleep(self.sleep_time)
+        return self
+
 
     def terminate(self):
         if self.arm_connection is None:
@@ -68,8 +84,8 @@ class robotic_arm:
     def grip_complete_close(self):
         gripMove(255, 255, 255, self.gripper_port, self.sleep_time)
         return self
-
-
+    
+    
 if __name__ == "__main__":
     pass
     
