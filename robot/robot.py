@@ -11,7 +11,8 @@ def check_connection(func):
         if self.arm_connection is None:
             print("請先連接上手臂網路")
             return self
-        return func(self, *args, **kwargs)
+        result = func(self, *args, **kwargs)
+        return result
     return wrapper
 
 def print_update_position(func):
