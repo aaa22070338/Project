@@ -4,12 +4,12 @@ import supervision as sv
 import cv2
 from scipy.spatial import cKDTree
 import pickle
-# with open('E:\YOLOv8_Segmentation_Custom\calibration.pkl', 'rb') as file:
-#     camera_matrix, dist_coeff = pickle.load(file)
-with open('./hand_matrix/camMatrix.npy', 'rb') as file:
-    camera_matrix = np.load(file)
-with open('./hand_matrix/distCoef.npy', 'rb') as file:
-    dist_coeff = np.load(file)
+with open('./hand_matrix/calibration.pkl', 'rb') as file:
+    camera_matrix, dist_coeff = pickle.load(file)
+# with open('./hand_matrix/camMatrix.npy', 'rb') as file:
+#     camera_matrix = np.load(file)
+# with open('./hand_matrix/distCoef.npy', 'rb') as file:
+#     dist_coeff = np.load(file)
 
 def revise_points(approx_points, epsilon):#合併點
     pile = np.vstack([point for points in approx_points 
