@@ -32,7 +32,7 @@ class robotic_arm:
     def __init__(self, gripper_port: str, arm_connection: socket.socket | None = None) -> None:
         self.arm_connection = arm_connection
         self.gripper_port = gripper_port
-        self.origin = [500, 200, 600, -180, 0, -60]
+        self.origin = [360,-25 , 500, -180, 0, -60]
         self.position = None
         self.arm_sleep_time = 0.05
         self.gripper_sleep_time = 1
