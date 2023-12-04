@@ -175,7 +175,8 @@ class block_detect:
         "orange": (0, 100, 255),
         "yellow": (0, 255, 255),
         "green": (0, 128, 0),
-        "blue": (255, 0, 0)
+        "blue": (255, 0, 0),
+        "purple": (160, 0, 160)
         }
         
         rgb = self.color_check(self.region_mask)
