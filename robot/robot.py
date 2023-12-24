@@ -240,8 +240,8 @@ class robotic_arm:
             # 將相譏、目標點位置轉到手臂座標系
             cam_position_atGrip = self.C2G_transfer_matrix @ np.array([0, 0, 1]).T
             # 計算要移動至的機械座標
-            position[0] = cam_position[0]-np.cos(phi)*cam_position_atGrip[0]+np.sin(phi)*cam_position_atGrip[1]
-            position[1] = cam_position[1]-np.sin(phi)*cam_position_atGrip[0]-np.cos(phi)*cam_position_atGrip[1]
+            position[0] = target_position[0]-np.cos(phi)*cam_position_atGrip[0]+np.sin(phi)*cam_position_atGrip[1]
+            position[1] = target_position[1]-np.sin(phi)*cam_position_atGrip[0]-np.cos(phi)*cam_position_atGrip[1]
             position[5] = np.degrees(phi)
 
         position = self.__add_offset(position)
