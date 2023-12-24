@@ -43,9 +43,9 @@ def revise_points(approx_points, epsilon):#合併點
     return merge_lines, combine_points
   
 class block_detect:
-    def __init__(self, model_part:YOLO, model_region:YOLO) -> None:#傳入模型
-            self.model_part = model_part
-            self.model_region = model_region
+    def __init__(self, surface_model:YOLO, cube_model:YOLO) -> None:#傳入模型
+            self.surface_model = surface_model
+            self.cube_model = cube_model
             self.first_point = None 
             self.next_reference_point = None
             self.isFirstFrame = True
@@ -63,11 +63,11 @@ class block_detect:
         # }
         
         hsv_boundary = {
-            "red": np.array([[0, 180, 0], [20, 255, 255]], dtype=np.uint8),
-            "blue": np.array([[75, 0, 0], [124, 255, 43]], dtype=np.uint8),
+            "red": np.array([[0, 150, 0], [20, 255, 255]], dtype=np.uint8),
+            "blue": np.array([[0, 0, 0], [179, 70, 80]], dtype=np.uint8),
             "green": np.array([[38, 33, 0], [75, 165, 255]], dtype=np.uint8),
-            "yellow": np.array([[22, 90, 110], [70, 255, 255]], dtype=np.uint8),
-            "purple": np.array([[110, 0, 55], [160, 255, 160]], dtype=np.uint8)
+            "yellow": np.array([[20, 50, 110], [50, 255, 255]], dtype=np.uint8),
+            "purple": np.array([[100, 0, 55], [160, 255, 160]], dtype=np.uint8)
         }
         color_deter = {
             "white": (255, 255, 255),
@@ -92,7 +92,7 @@ class block_detect:
     
     def detect_region(self, img, options=None):#回傳整體白色區域 or 輪廓，全部或選擇
         self.img = img
-        self.predict_region = self.model_region(self.img,verbose=False)[0]
+        self.predict_region = self.cube_model(self.img,verbose=False)[0]
         self.detections_region = sv.Detections.from_yolov8(self.predict_region)
         if self.detections_region.mask is None:
             return None
@@ -113,7 +113,7 @@ class block_detect:
 
     def detect_parts(self, img, options=None):#回傳部分輪廓 ,算重心
         self.img = img
-        self.predict_part = self.model_part(self.img,verbose=False)[0]
+        self.predict_part = self.surface_model(self.img,verbose=False)[0]
         self.detections_part = sv.Detections.from_yolov8(self.predict_part)
         
         if self.detections_part.mask is None:
