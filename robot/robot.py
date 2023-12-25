@@ -24,8 +24,8 @@ def print_update_position(func):
         result = func(self, *args, **kwargs)
 
         current_position = receive(self.arm_connection)
-        current_position = self.__sub_offset(current_position)
-        print("夾爪已移動至: ", current_position)
+        current_position = self.sub_offset(current_position)
+        print("夾爪已移動至: ", f"{current_position[0]:.2f}, {current_position[1]:.2f}, {current_position[2]:.2f}, {current_position[3]:.2f}, {current_position[4]:.2f}, {current_position[5]:.2f}")
         self._position = current_position
         time.sleep(self.arm_sleep_time)
         return result
@@ -53,10 +53,10 @@ class robotic_arm:
     @property
     def position(self):
         if self._position is None:
-            robot_move([0, 0, 0, 0, 0, 1])
+            robot_move([0, 0, 0, 0, 0, 1], self.arm_connection)
 
             current_position = receive(self.arm_connection)
-            current_position = self.__sub_offset(current_position)
+            current_position = self.sub_offset(current_position)
             print("夾爪已移動至: ", current_position)
             self._position = current_position
             time.sleep(self.arm_sleep_time)
@@ -224,9 +224,10 @@ class robotic_arm:
             [0, 0, 1]
         ])
         # 將相譏、目標點位置轉到手臂座標系
-        cam_position = G2A_transfer_matrix @ self.C2G_transfer_matrix @ np.array([0, 0, 1]).T
+        cam_position_atGrip = self.C2G_transfer_matrix @ np.array([0, 0, 1]).T
+        cam_position = G2A_transfer_matrix @ cam_position_atGrip 
+
         target_position = G2A_transfer_matrix @ self.C2G_transfer_matrix @ np.array([x, y, 1]).T
-        print(cam_position, target_position)
         # 計算兩位置機械座標差值
         delta_x = target_position[0] - cam_position[0]
         delta_y = target_position[1] - cam_position[1]
@@ -318,7 +319,7 @@ class robotic_arm:
         position[5] += self.rz_offset
         return position
 
-    def __sub_offset(self, position: list):
+    def sub_offset(self, position: list):
         position[3] -= self.rx_offset
         position[4] -= self.ry_offset
         position[5] -= self.rz_offset
