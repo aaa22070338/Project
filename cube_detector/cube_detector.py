@@ -84,20 +84,18 @@ class CubeDetector:
 
     def __color_detect(self, masked_image):
         hsv_ranges = {
-            "white": np.array([[0, 15, 200], [75, 70, 255]], dtype=np.uint8),
-            "red": np.array([[122, 63, 56], [132, 255, 255]], dtype=np.uint8),
-            "orange": np.array([[100, 40, 170], [120, 255, 255]], dtype=np.uint8),
-            "yellow": np.array([[80, 90, 100], [100, 255, 255]], dtype=np.uint8),
-            "green": np.array([[50, 150, 60], [80, 210, 200]], dtype=np.uint8),
-            "blue": np.array([[0, 70, 25], [40, 255, 210]], dtype=np.uint8),
+            "red": np.array([[86, 125, 0], [97, 255, 255]], dtype=np.uint8),
+            "yellow": np.array([[86, 67, 0], [95, 255, 255]], dtype=np.uint8),
+            "green": np.array([[46, 138, 21], [77, 255, 255]], dtype=np.uint8),
+            "blue": np.array([[0, 0, 0], [179, 255, 18]], dtype=np.uint8),
+            "purple": np.array([[0, 33, 26], [179, 150, 117]], dtype=np.uint8)
         }
         color_dict = {
-            "red": (0, 0, 255),  # 红色
-            "orange": (0, 165, 255),  # 橘色
-            "yellow": (0, 255, 255),  # 黄色
-            "green": (0, 128, 0),  # 綠色
-            "blue": (255, 0, 0),  # 藍色
-            "white": (255, 255, 255),  # 白色
+            "red": (0, 0, 255),
+            "yellow": (0, 255, 255),
+            "green": (0, 128, 0),
+            "blue": (255, 0, 0),
+            "purple": (160, 0, 160)
         }
         hsv_image = cv2.cvtColor(masked_image, cv2.COLOR_RGB2HSV)
         maximum_pixels_color = None
