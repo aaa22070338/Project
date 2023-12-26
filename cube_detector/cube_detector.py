@@ -5,7 +5,7 @@ from ultralytics import YOLO
 import copy
 from cube_detector.helpers import *
 
-ColorType : TypeAlias = Literal['red','blue','green','yellow','white','orange']
+ColorType : TypeAlias = Literal['red','blue','green','yellow','white','orange','purple']
 DetectMethod : TypeAlias = Literal['tracking']
 class CubeDetector:
     def __init__(self, cube_model:YOLO,cube_surface_model:YOLO) -> None:
@@ -84,17 +84,17 @@ class CubeDetector:
 
     def __color_detect(self, masked_image):
         hsv_ranges = {
-            "red": np.array([[86, 125, 0], [97, 255, 255]], dtype=np.uint8),
-            "yellow": np.array([[86, 67, 0], [95, 255, 255]], dtype=np.uint8),
-            "green": np.array([[46, 138, 21], [77, 255, 255]], dtype=np.uint8),
-            "blue": np.array([[0, 0, 0], [179, 255, 18]], dtype=np.uint8),
-            "purple": np.array([[0, 33, 26], [179, 150, 117]], dtype=np.uint8)
+            "red": np.array([[0, 222, 0], [20, 255, 255]], dtype=np.uint8),
+            "yellow": np.array([[8, 101, 74], [105, 255, 255]], dtype=np.uint8),
+            "green": np.array([[50, 101, 0], [112, 255, 108]], dtype=np.uint8),
+            # "blue": np.array([[0, 0, 0], [179, 255, 18]], dtype=np.uint8),
+            "purple": np.array([[83, 31, 0], [161, 160, 145]], dtype=np.uint8)
         }
         color_dict = {
             "red": (0, 0, 255),
             "yellow": (0, 255, 255),
             "green": (0, 128, 0),
-            "blue": (255, 0, 0),
+            # "blue": (255, 0, 0),
             "purple": (160, 0, 160)
         }
         hsv_image = cv2.cvtColor(masked_image, cv2.COLOR_RGB2HSV)

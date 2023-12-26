@@ -11,7 +11,7 @@ import binascii
 port_ = '/dev/ttyUSB1'
 #port_ = '/dev/ttyUSB2'
 
-ser = serial.Serial(port='COM8',baudrate=115200,timeout=1, parity=serial.PARITY_NONE,
+ser = serial.Serial(port='COM12',baudrate=115200,timeout=1, parity=serial.PARITY_NONE,
 stopbits=serial.STOPBITS_ONE,bytesize=serial.EIGHTBITS)
 counter = 0
 

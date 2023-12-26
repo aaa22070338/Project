@@ -63,19 +63,16 @@ class block_detect:
         # }
         
         hsv_boundary = {
-            "red": np.array([[0, 150, 0], [20, 255, 255]], dtype=np.uint8),
-            "blue": np.array([[0, 0, 0], [179, 70, 80]], dtype=np.uint8),
-            "green": np.array([[38, 33, 0], [75, 165, 255]], dtype=np.uint8),
-            "yellow": np.array([[20, 50, 110], [50, 255, 255]], dtype=np.uint8),
-            "purple": np.array([[100, 0, 55], [160, 255, 160]], dtype=np.uint8)
+            "red": np.array([[0, 138, 71], [18, 250, 250]], dtype=np.uint8),
+            "green": np.array([[37, 0, 0], [76, 255, 104]], dtype=np.uint8),
+            "yellow": np.array([[15, 158, 128], [109, 255, 233]], dtype=np.uint8),
+            "purple": np.array([[87, 0, 81], [179, 255, 133]], dtype=np.uint8)
         }
         color_deter = {
-            "white": (255, 255, 255),
             "red": (0, 0, 255),
-            "orange": (0, 100, 255),
-            "yellow": (0, 255, 255),
+            # "blue": (255, 0, 0),
             "green": (0, 128, 0),
-            "blue": (255, 0, 0),
+            "yellow": (0, 255, 255),
             "purple": (160, 0, 160)
         }
         hsv = cv2.cvtColor(masked_img, cv2.COLOR_RGB2HSV)
