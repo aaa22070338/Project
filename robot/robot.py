@@ -7,6 +7,7 @@ from robot.helpers import *
 from functools import wraps
 
 
+
 def check_connection(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -36,7 +37,7 @@ class robotic_arm:
     def __init__(self, gripper_port: str, arm_connection: socket.socket | None = None) -> None:
         self.arm_connection = arm_connection
         self.gripper_port = gripper_port
-        self.origin = [355,-25 , 500, -177, 1, -60]
+        self.origin = [355,-25 , 500, -180, 0, 0]
         self.position = None
         self.arm_sleep_time = 0.05
         self.gripper_sleep_time = 1
@@ -57,7 +58,7 @@ class robotic_arm:
 
             current_position = receive(self.arm_connection)
             current_position = self.sub_offset(current_position)
-            print("夾爪已移動至: ", current_position)
+            print("夾爪已移動至: ", f"{current_position[0]:.2f}, {current_position[1]:.2f}, {current_position[2]:.2f}, {current_position[3]:.2f}, {current_position[4]:.2f}, {current_position[5]:.2f}")
             self._position = current_position
             time.sleep(self.arm_sleep_time)
             return self._position
@@ -227,11 +228,12 @@ class robotic_arm:
         cam_position_atGrip = self.C2G_transfer_matrix @ np.array([0, 0, 1]).T
         cam_position = G2A_transfer_matrix @ cam_position_atGrip 
 
-        target_position = G2A_transfer_matrix @ self.C2G_transfer_matrix @ np.array([x, y, 1]).T
-        # 計算兩位置機械座標差值
+        target_position_atGrip =  self.C2G_transfer_matrix @ np.array([x, y, 1]).T
+        target_position = G2A_transfer_matrix @ target_position_atGrip
+        # # 計算兩位置機械座標差值
         delta_x = target_position[0] - cam_position[0]
         delta_y = target_position[1] - cam_position[1]
-        # 移動該差值
+        # # 移動該差值
         position = current_position
         position[0] += delta_x
         position[1] += delta_y
@@ -248,7 +250,28 @@ class robotic_arm:
         position = self.__add_offset(position)
         robot_move(position, self.arm_connection)
         return self
+    @check_connection
+    @print_update_position
+    def cam_dont_move(self):
+        current_position = self.position
+        rz = np.radians(current_position[5])
+        G2A_transfer_matrix = np.array([  # gripper to arm
+            [np.cos(rz), -np.sin(rz), current_position[0]],
+            [np.sin(rz), np.cos(rz), current_position[1]],
+            [0, 0, 1]
+        ])
+        print(f"{G2A_transfer_matrix=}\n,{self.C2G_transfer_matrix}")
+        # 將相譏、目標點位置轉到手臂座標系
+        cam_position_atGrip = self.C2G_transfer_matrix @ np.array([0, 0, 1]).T
+        cam_position = G2A_transfer_matrix @ cam_position_atGrip
+        position = current_position
+        position[0] = cam_position [0]
+        position[1] = cam_position[1]
 
+        position = self.__add_offset(position)
+        robot_move(position, self.arm_connection)
+        return self
+        
     @check_connection
     @print_update_position
     def cam_rotate_to(self, alpha):
@@ -314,9 +337,11 @@ class robotic_arm:
         return self
 
     def __add_offset(self, position: list):
+        print(position,"before")
         position[3] += self.rx_offset
         position[4] += self.ry_offset
         position[5] += self.rz_offset
+        print(position,"after")
         return position
 
     def sub_offset(self, position: list):
