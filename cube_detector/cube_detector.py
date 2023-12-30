@@ -65,6 +65,8 @@ class CubeDetector:
     def get_cube_sequence_imagePoints(self,color:ColorType):
         return self.cube_image_points.get(color, None)
     
+    
+
     def get_cube_contour_outer(self,color:ColorType):
         return self.cube_contour_outer.get(color, None)
     

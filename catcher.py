@@ -179,7 +179,7 @@ class block_detect:
         rgb = self.color_check(self.region_mask)
         for color_name, rgb_value in color_deter.items():
             if rgb_value == rgb:
-                yield f"{color_name.capitalize()}" , rgb
+                yield f"{color_name}" , rgb
 
     def __find_reference_point(self, series):#抓前一個參考點
         if self.isFirstFrame == True:#抓第一偵參考點
