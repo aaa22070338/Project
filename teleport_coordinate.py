@@ -3,9 +3,10 @@ import cv2
 from ultralytics import YOLO
 import cube_detector.cube_detector as CD
 import pickle
-import SaveSystem as SS
+import SaveSystem_by_environment
 
-SS.SaveSystem.reset()
+Save_2_environ = SaveSystem_by_environment.save_system()
+Save_2_environ.reset()
 
 model = YOLO("./yolov8n-seg-custom.pt")
 surface_model = YOLO('./cube_surface_seg2.pt')
@@ -139,7 +140,7 @@ while True:
                 print(f"{x=}")
                 print(f"{y=}")
                 print(f"{z=}")
-                SS.SaveSystem.save_coordinate(color_name,x, y, z)
+                Save_2_environ.save_coordinate(color_name,x, y, z, 5)
 
         cv2.imshow("result", result_img)
         key = cv2.waitKey(1)
