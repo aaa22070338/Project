@@ -9,41 +9,35 @@ import cube_detector.cube_detector as CD
 import SaveSystem_by_environment
 import SaveSystem_by_grip
 import time
-
-
-
-
 #-------------連線-------------
 TCP_IP = "192.168.0.1"  #  Robot IP address. Start the TCP server from the robot before starting this code
 TCP_PORT = 3000  #  Robot Port
 BUFFER_SIZE = 1024  #  Buffer size of the channel, probably 1024 or 4096
 
 # gripper_port = '/dev/ttyUSB2'  # gripper USB port to linux
-gripper_port = "COM12"  # gripper USB port to windows
+gripper_port = "COM14"  # gripper USB port to windows
 
 global c
 c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  #  Initialize the communication the robot through TCP as a client, the robot is the server.
 #  Connect the ethernet cable to the robot electric box first
 c.connect((TCP_IP, TCP_PORT))
 
-arm = bot.robotic_arm(gripper_port ,c)
+arm = bot.robotic_arm(None ,c)
 arm.set_arm_sleep_time(0.05)
-arm.set_girpper_sleep_time(0.75)
+# arm.set_girpper_sleep_time(0.75)
 arm.set_offset(1,1,-60)
-# arm.set_origin([])
 arm.move_to_origin()
 arm.move_to(rz=0)
 # arm.grip_activate()
-arm.grip_complete_open()
+# arm.grip_complete_close()
+# arm.grip_complete_open()
 
-
-model_part = YOLO("cube_surface.pt")
-
-print(type(model_part))
-model_region = YOLO("cube.pt")
+model_part = YOLO("./cube_surface.pt")
+model_region = YOLO("./cube.pt")
 
 model = YOLO("./cube.pt")
 surface_model = YOLO('./cube_surface.pt')
+model_color = YOLO('./cube_color.pt')
 
 with open('./hand_matrix/calibration.pkl', 'rb') as file:
     camera_matrix, dist_coeff = pickle.load(file)
@@ -52,13 +46,11 @@ with open("./fixedCam_matrix/MultiMatrix_fixed_640_480.npz","rb") as file:
     dist = np.load(file)["distCoef"]
 
 CT = CT.block_detect(model_part, model_region)
-detector = CD.CubeDetector(model, surface_model)
+detector = CD.CubeDetector(model, surface_model, model_color) 
 Save_2_environ = SaveSystem_by_environment.save_system()
 Save_2_grip = SaveSystem_by_grip.save_system()
 
 Save_2_environ.reset()
-Save_2_grip.reset()
-
 
 def draw_axis(img, corners, image_points):
     corner = tuple(corners[0].ravel())
@@ -88,10 +80,11 @@ object_points = np.array( #中心
 cap = cv2.VideoCapture(1,cv2.CAP_DSHOW)
 
 fixed_to_table = np.float32(
-    [[0, 1, 0, -650],
-     [1, 0, 0, -250],
-     [0, 0, -1, 860],
-     [0, 0, 0, 1]])
+    [[0, 1, 0, -600],
+     [1, 0, 0, -260],
+     [0, 0, -1, 940],
+     [0, 0, 0, 1]]
+)
 _, table_rmtx, table_tvec, _, _, _, _  = cv2.decomposeProjectionMatrix(fixed_to_table[0:3,0:])
 
 table_rvec, _ = cv2.Rodrigues(table_rmtx)
@@ -106,7 +99,7 @@ while True:
         scale = height / frame.shape[0]
         frame = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
         #  將圖片丟入偵測器進行偵測
-        result_img = detector.detect(frame, index=None, color=None)
+        result_img = detector.detect(frame, index=None, color=None,show_process_img=True)
         
         # 讀取抓到的角點座標
         for color_name in list(detector.cube_contour_outer.keys()):
@@ -185,14 +178,19 @@ while True:
             else:
                 cv2.putText(result_img, f"Ok", (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4,)
                 result_img = cv2.circle(result_img, predict_cube_center_imagePoint.ravel(), 5, (0, 255, 0), -1)
-                print(f"{type(color_name)=}")
+                # print(f"{type(color_name)=}")
                 x,y,z = transformed_point[0:3]
-                print(f"{x=}")
-                print(f"{y=}")
-                print(f"{z=}")
-                Save_2_environ.save_coordinate(color_name,x, y, z, 5)
+                # print(f"{x=}")
+                # print(f"{y=}")
+                # print(f"{z=}")
+                Save_2_environ.save_coordinate_by_color(color_name,x, y, z, 8)
 
         cv2.imshow("result", result_img)
+        Key = cv2.waitKey(1)
+        if Key == 27:
+            break
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
         if Save_2_environ.completed_Save == True:
             break
     else:
@@ -201,13 +199,17 @@ cap.release()
 cv2.destroyAllWindows()
 
 #-------------------取出環境座標並移動-------------------
-environment_coor = Save_2_environ.get_coordinates_by_color(["green", "yellow"])
+series = ["green", "yellow", "purple", "red"]
+environment_coor = Save_2_environ.get_coordinates_by_color(series)
 print(environment_coor)
 for i in range(len(environment_coor)):
+    pile_y_axis = 185 + (i*50)
+
     x = environment_coor[i][0]
     y = environment_coor[i][1]
     arm.move_to(x=x,y=y)
     arm.move_to(z=350)
+    Save_2_grip.reset()
     #------------------夾爪抓偏移座標並移動---------------------
     lens = cv2.VideoCapture(0,cv2.CAP_DSHOW)
     while True:
@@ -215,7 +217,6 @@ for i in range(len(environment_coor)):
         if not ret:
             break
         vertical_offset = 0
-        
         for image_points in CT.detect_parts(img):
             for color_name, rgb in CT.get_color_text(img):
                 image_points = np.float32(image_points)
@@ -228,56 +229,52 @@ for i in range(len(environment_coor)):
                 rotation_matrix, _ = cv2.Rodrigues(rvec)
                 # 使用旋转矩阵计算欧拉角（roll-pitch-yaw 顺序）
                 yaw = np.arctan2(rotation_matrix[1, 0], rotation_matrix[0, 0])
-                pitch = np.arctan2(
-                    -rotation_matrix[2, 0],
-                    np.sqrt(rotation_matrix[2, 1] ** 2 + rotation_matrix[2, 2] ** 2),
-                )
+                pitch = np.arctan2(-rotation_matrix[2, 0], np.sqrt(rotation_matrix[2, 1] ** 2 + rotation_matrix[2, 2] ** 2))
                 roll = np.arctan2(rotation_matrix[2, 1], rotation_matrix[2, 2])
                 # 将弧度转换为度数
-                rx0 = np.degrees(yaw)
+                rz = np.degrees(yaw)
                 ry = np.degrees(pitch)
-                rz = np.degrees(roll)
-                RotationZ = np.array([rx0])
+                rx = np.degrees(roll)
+                RotationZ = np.array([rz])
                 text_loc_tvec = (5, 15 + vertical_offset)
                 text_loc_rvec = (5, 32 + vertical_offset)
                 text_loc_check = (400, 15 + vertical_offset)
 
-                Save_2_grip.save_coordinate(color_name, x, y, RotationZ, 5)
+                Save_2_grip.save_coordinate_by_color(color_name, x, y, RotationZ, 5)
                 xyz_str = [f"{c}: {v[0]:.2f}" for c, v in zip("xyz", [x, y, z])]
                 cv2.putText(img, f"{color_name} {', '.join(xyz_str)}", text_loc_tvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
-                cv2.putText(img, f"Rotate Z: {rx0:.1f},   Rotate Y: {ry:.1f},   Rotate X: {rz:.1f}", text_loc_rvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
+                cv2.putText(img, f"Rotate Z: {rz:.1f},   Rotate Y: {ry:.1f},   Rotate X: {rx:.1f}", text_loc_rvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
                 if -10 < x < 10 and -10 < y < 10:
                     cv2.putText(img, "OK", text_loc_check, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                 else:
                     cv2.putText(img, "Moving", text_loc_check, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255) ,2)
+                vertical_offset += 34
                 cv2.circle(img, (int(x[0]), int(y[0])), 5, (0, 0, 255), -1)
-
-        else:
-            pass
         cv2.imshow("test", img)
+        cv2.waitKey(1)
         if Save_2_grip.completed_Save == True:
             break
     lens.release()
     cv2.destroyAllWindows()
 
-    grip_coor = Save_2_grip.get_coordinates_by_color(["green", "yellow"])
-
-
+    grip_coor = Save_2_grip.get_coordinates_by_test(series[i])
+    print(grip_coor)
     for j in range(len(grip_coor)):
         offset_x = grip_coor[j][0]
         offset_y = grip_coor[j][1] 
         offset_Rz = grip_coor[j][2]
-        
+        print(offset_x, offset_y, offset_Rz)
         arm.cam_move_to(x=offset_x, y=offset_y, alpha=offset_Rz)
     #------------------向下並抓起移回原點--------------------
         arm.grip_move_to(x=0, y=40)
-        arm.move_to(z=200)
-        arm.grip_move(110, 110, 110)#夾起
-        arm.move_to_origin()
         arm.move_to(z=185)
-        arm.grip_move(90, 10, 100)#放開
+        # arm.grip_move(110, 110, 110)#夾起
+        arm.move_to(z=350)
         arm.move_to_origin()
-        break
+        arm.move_to(z=pile_y_axis)
+        # arm.grip_move(90, 10, 100)#放開
+        arm.move_to_origin()
+
 
 arm.terminate()
 

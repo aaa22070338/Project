@@ -14,7 +14,7 @@ class save_system:
         self.count = 0
 
     @classmethod
-    def save_coordinate(self, color_name, x, y, Rz, input_count):
+    def save_coordinate_by_color(self, color_name, x, y, Rz, input_count):
         if self.completed_Save == False:
             if self.isclear == False:
                 #清除檔案
@@ -46,23 +46,8 @@ class save_system:
                 self.completed_Save = True
             if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("purple"))  == input_count):
                 self.completed_Save = True
-            
-
-
-    # 輸出過濾後的座標
-
-    # def get_coordinate(line_number):
-    #     with open("SaveCoor_grip.txt", 'r') as read:
-    #         lines = read.readlines()
-    #         lines = lines[line_number - 1]
-    #         values = lines.strip().split('\t')
-    #         x = float(values[0])
-    #         y = float(values[1])
-    #         z = float(values[2])
-
-    #         return x, y, z
         
-    def get_coordinates_by_color(self, colors: list):
+    def get_coordinates_by_color(self, colors: str):
         with open("SaveCoor_grip.txt", 'r') as read:
             lines = read.readlines()
         all_coordinates = []
@@ -82,7 +67,23 @@ class save_system:
             all_coordinates.append(coordinates)
         return all_coordinates
 
-        
+    def get_coordinates_by_test(self, color: str):
+        coordinates = []
+        all_coordinates = []
+        with open("SaveCoor_grip.txt", 'r') as read:
+            for line in read:
+                if not line.startswith(color):
+                    continue
+
+                x, y, z = map(float, line.strip(f"{color}").split('\t'))
+                coordinates.append((x, y, z))
+        if coordinates:
+            coordinates = np.vstack(coordinates)
+
+        coordinates = self.remove_outlier(coordinates)
+        all_coordinates.append(coordinates)
+        return all_coordinates    
+    
     def remove_outlier(self, coordinates):
         # 計算每個維度的上下四分位距
         Q1 = np.percentile(coordinates, 25, axis=0)
@@ -90,7 +91,7 @@ class save_system:
         # 計算 IQR（上四分位距 - 下四分位距）
         IQR = Q3 - Q1
         # 定義極端值範圍
-        outlier_range = 0.3 * IQR
+        outlier_range = 0.5 * IQR
         # 過濾掉極端值
         filtered_coordinates = [coord for coord in coordinates if np.all((Q1 - outlier_range) <= coord) and np.all(coord <= (Q3 + outlier_range))]
         for coord in filtered_coordinates:

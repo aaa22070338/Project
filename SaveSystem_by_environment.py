@@ -14,7 +14,8 @@ class save_system:
         self.count = 0
 
     @classmethod
-    def save_coordinate(self, color_name, x, y, Rz, input_count):
+    def save_coordinate_by_color(self, color_name, x, y, Rz, input_count):
+        possible_color = ["red", "yellow", "green", "purple"]
         if self.completed_Save == False:
             if self.isclear == False:
                 #清除檔案
@@ -22,9 +23,9 @@ class save_system:
                     Clear.seek(0)
                     Clear.truncate() 
                 self.isclear = True
-
+            #檢查儲存次數有沒有達到上限(input_count)
             color_coordinates_count = sum(1 for line in open("SaveCoor_environment.txt") if line.startswith(color_name))
-            
+        
             if color_coordinates_count < input_count:
                 data = np.array([x, y, Rz])
                 data_with_newline = np.vstack([data, np.zeros_like(data[0])])
@@ -36,27 +37,18 @@ class save_system:
                     file.write(header_str)
                     file.write('\n')
                 self.count += 1
-            # if color_coordinates_count + 1 == 4:
-            #     print(f"{color_name}，已達上限")
-#-------------------___________________-----------------------------------
-            if (sum(1 for line in open("SaveCoor_environment.txt") if line.startswith("green")) and 
-                sum(1 for line in open("SaveCoor_environment.txt") if line.startswith("yellow")) == input_count):
-                self.completed_Save = True
             
+            
+            # if (input_count/2 < sum(1 for line in open("SaveCoor_environment.txt") if line.startswith("green")) <= input_count):
+            #     self.completed_Save = True
+                
+            # 遍歷每一行，計算行數
+            with open("SaveCoor_environment.txt", 'r') as file:
+                line_count = sum(1 for line in file)
+            # 檢查是否有足夠的行數符合條件 放4個方塊
+            if line_count >= input_count * 4:
+                self.completed_Save = True
 
-
-    # 輸出過濾後的座標
-
-    def get_coordinate(line_number):
-        with open("SaveCoor_environment.txt", 'r') as read:
-            lines = read.readlines()
-            lines = lines[line_number - 1]
-            values = lines.strip().split('\t')
-            x = float(values[0])
-            y = float(values[1])
-            z = float(values[2])
-
-            return x, y, z
         
     def get_coordinates_by_color(self, colors: list):
         with open("SaveCoor_environment.txt", 'r') as read:
@@ -93,3 +85,12 @@ class save_system:
             return coord
 
 
+            # # 顏色列表，檢查每種顏色的行數是否符合條件##############################################重改
+            # for color in color_name:
+            #     line_count = sum(1 for line in open("SaveCoor_environment.txt") if line.startswith(color))
+            #     # 如果該顏色的行數符合條件，則增加通過的顏色數量
+            #     if line_count >= input_count * 0.7:
+            #         valid_color_count += 1
+            # # 檢查是否所有顏色都通過檢查
+            # if valid_color_count == len(color_name):
+            #     self.completed_Save = True

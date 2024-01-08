@@ -5,12 +5,13 @@ from ultralytics import YOLO
 import copy
 from cube_detector.helpers import *
 
-ColorType : TypeAlias = Literal['red','blue','green','yellow','white','orange','purple']
+ColorType : TypeAlias = Literal['red','blue','green','yellow','white','orange']
 DetectMethod : TypeAlias = Literal['tracking']
 class CubeDetector:
-    def __init__(self, cube_model:YOLO,cube_surface_model:YOLO) -> None:
+    def __init__(self, cube_model:YOLO,cube_surface_model:YOLO, cube_color_model:YOLO) -> None:
         self.model = cube_model
         self.suface_model = cube_surface_model
+        self.color_model = cube_color_model
         self.is_first_frame = False
         self.tracking_props: dict[ColorType, tracker] = {}
 
@@ -65,8 +66,6 @@ class CubeDetector:
     def get_cube_sequence_imagePoints(self,color:ColorType):
         return self.cube_image_points.get(color, None)
     
-    
-
     def get_cube_contour_outer(self,color:ColorType):
         return self.cube_contour_outer.get(color, None)
     
@@ -85,34 +84,63 @@ class CubeDetector:
         return masked_image
 
     def __color_detect(self, masked_image):
-        hsv_ranges = {
-            "red": np.array([[0, 222, 0], [20, 255, 255]], dtype=np.uint8),
-            "yellow": np.array([[8, 101, 74], [105, 255, 255]], dtype=np.uint8),
-            "green": np.array([[50, 101, 0], [112, 255, 108]], dtype=np.uint8),
-            # "blue": np.array([[0, 0, 0], [179, 255, 18]], dtype=np.uint8),
-            "purple": np.array([[83, 31, 0], [161, 160, 145]], dtype=np.uint8)
-        }
+        # hsv_ranges = {
+        #     "white": np.array([[0, 15, 200], [75, 70, 255]], dtype=np.uint8),
+        #     "red": np.array([[122, 63, 56], [132, 255, 255]], dtype=np.uint8),
+        #     "orange": np.array([[100, 40, 170], [120, 255, 255]], dtype=np.uint8),
+        #     "yellow": np.array([[80, 90, 100], [100, 255, 255]], dtype=np.uint8),
+        #     "green": np.array([[50, 150, 60], [80, 210, 200]], dtype=np.uint8),
+        #     "blue": np.array([[0, 70, 25], [40, 255, 210]], dtype=np.uint8),
+        # }
         color_dict = {
-            "red": (0, 0, 255),
-            "yellow": (0, 255, 255),
-            "green": (0, 128, 0),
-            # "blue": (255, 0, 0),
-            "purple": (160, 0, 160)
+            "red": (0, 0, 255),  # 红色
+            "orange": (0, 165, 255),  # 橘色
+            "yellow": (0, 255, 255),  # 黄色
+            "green": (0, 128, 0),  # 綠色
+            "blue": (255, 0, 0),  # 藍色
+            "white": (255, 255, 255),  # 白色
+            "purple": (160, 0, 160),  # 紫色
+            "black": (0, 0, 0),  # 黑色
         }
-        hsv_image = cv2.cvtColor(masked_image, cv2.COLOR_RGB2HSV)
-        maximum_pixels_color = None
-        pixel_counts = {}
-        for color_name, hsv_range in hsv_ranges.items():
-            lower_bound = hsv_range[0]
-            upper_bound = hsv_range[1]
+        # hsv_image = cv2.cvtColor(masked_image, cv2.COLOR_RGB2HSV)
+        # maximum_pixels_color = None
+        # pixel_counts = {}
+        # for color_name, hsv_range in hsv_ranges.items():
+        #     lower_bound = hsv_range[0]
+        #     upper_bound = hsv_range[1]
 
-            mask = cv2.inRange(hsv_image, lower_bound, upper_bound)
-            pixel_counts[color_name] = cv2.countNonZero(mask)
-        maximum_pixels_color = max(pixel_counts, key=pixel_counts.get)
-        if maximum_pixels_color is None:
+        #     mask = cv2.inRange(hsv_image, lower_bound, upper_bound)
+        #     pixel_counts[color_name] = cv2.countNonZero(mask)
+        # maximum_pixels_color = max(pixel_counts, key=pixel_counts.get)
+        # if maximum_pixels_color is None:
+        #     raise DetectError("無法判斷顏色")
+
+        color_results = self.color_model(self.img,verbose = False)
+        self.process_color = None
+        for result in color_results:
+            for box in result.boxes:
+                x,y,w,h = box.xywh.cpu().numpy().flatten()
+                test_result = cv2.pointPolygonTest(self.contour_outer, (x, y), False) # 計算重心是否位於方塊輪廓內部
+                
+                if test_result <= 0:
+                    continue
+
+                if box.cls.cpu().numpy()[0] == 0:
+                    self.process_color = "red"
+                elif box.cls.cpu().numpy()[0] == 1:
+                    self.process_color = "black"
+                elif box.cls.cpu().numpy()[0] == 2:
+                    self.process_color = "yellow"
+                elif box.cls.cpu().numpy()[0] == 3:
+                    self.process_color = "green"
+                elif box.cls.cpu().numpy()[0] == 4:
+                    self.process_color = "purple"
+
+        # self.process_color = maximum_pixels_color
+
+        if self.process_color is None:
             raise DetectError("無法判斷顏色")
-        self.process_color = maximum_pixels_color
-        return color_dict[maximum_pixels_color]
+        return color_dict[self.process_color]
 
     def __conner_detect(self, masked_image, color_rgb):
         result2 = self.suface_model(self.img,verbose = False)
@@ -298,6 +326,19 @@ class DetectError(Exception):
     def __init__(self, message):
         super().__init__(message)
 
+def draw_axis(img, corners, image_points):
+    corner = tuple(corners[0].ravel())
+    img = cv2.line(img, corner, tuple(np.int16(image_points[0].ravel())), (255,0,0), 5)
+    img = cv2.line(img, corner, tuple(np.int16(image_points[1].ravel())), (0,255,0), 5)
+    img = cv2.line(img, corner, tuple(np.int16(image_points[2].ravel())), (0,0,255), 5)
+    return img
+def draw_xy_lines(img, image_points):
+    img = cv2.line(img, tuple(np.int16(image_points[0].ravel())), tuple(np.int16(image_points[1].ravel())), (0,0,0), 5)
+    img = cv2.line(img, tuple(np.int16(image_points[1].ravel())), tuple(np.int16(image_points[2].ravel())), (0,0,0), 5)
+    return img
+def draw_z_lines(img, image_points):
+    img = cv2.line(img, tuple(np.int16(image_points[1].ravel())), tuple(np.int16(image_points[3].ravel())), (128,128,0), 5)
+    return img
 
 if __name__ == "__main__":
 
