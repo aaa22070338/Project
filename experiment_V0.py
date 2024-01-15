@@ -4,18 +4,22 @@ import socket
 import pickle
 import cv2
 import numpy as np
-import catcher as CT
+import catcher_ex as CT
 import cube_detector.cube_detector as CD
 import SaveSystem_by_environment
 import SaveSystem_by_grip
 import time
+import serial
 #-------------連線-------------
 TCP_IP = "192.168.0.1"  #  Robot IP address. Start the TCP server from the robot before starting this code
 TCP_PORT = 3000  #  Robot Port
 BUFFER_SIZE = 1024  #  Buffer size of the channel, probably 1024 or 4096
 
 # gripper_port = '/dev/ttyUSB2'  # gripper USB port to linux
-gripper_port = "COM14"  # gripper USB port to windows
+gripper_port = "COM15"  # gripper USB port to windows
+
+ser = serial.Serial("COM15", 9600, timeout=1)
+time.sleep(1.4)
 
 global c
 c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  #  Initialize the communication the robot through TCP as a client, the robot is the server.
@@ -25,11 +29,12 @@ c.connect((TCP_IP, TCP_PORT))
 arm = bot.robotic_arm(None ,c)
 arm.set_arm_sleep_time(0.05)
 # arm.set_girpper_sleep_time(0.75)
-arm.set_offset(1,1,-60)
+arm.set_offset(3,0,-90)
 arm.move_to_origin()
 arm.move_to(rz=0)
 # arm.grip_activate()
 # arm.grip_complete_close()
+# val = ser.write("0".encode("utf-8"))
 # arm.grip_complete_open()
 
 model_part = YOLO("./cube_surface.pt")
@@ -72,9 +77,7 @@ object_points = np.array( #中心
         [-25, 25, 0],  # 2
         [25, 25, 0],  # 3
         [25, -25, 0],  # 4
-    ],
-    dtype=np.float32,
-)
+    ], dtype=np.float32)
 
 #-------------------抓環境座標----------------------
 cap = cv2.VideoCapture(1,cv2.CAP_DSHOW)
@@ -83,8 +86,7 @@ fixed_to_table = np.float32(
     [[0, 1, 0, -600],
      [1, 0, 0, -260],
      [0, 0, -1, 940],
-     [0, 0, 0, 1]]
-)
+     [0, 0, 0, 1]])
 _, table_rmtx, table_tvec, _, _, _, _  = cv2.decomposeProjectionMatrix(fixed_to_table[0:3,0:])
 
 table_rvec, _ = cv2.Rodrigues(table_rmtx)
@@ -199,14 +201,15 @@ cap.release()
 cv2.destroyAllWindows()
 
 #-------------------取出環境座標並移動-------------------
-series = ["green", "yellow", "purple", "red"]
+series = ["green"]
 environment_coor = Save_2_environ.get_coordinates_by_color(series)
 print(environment_coor)
 for i in range(len(environment_coor)):
-    pile_y_axis = 185 + (i*50)
+    pile_y_axis = 255 + (i*50)
 
     x = environment_coor[i][0]
     y = environment_coor[i][1]
+    arm.move_to(y=400)
     arm.move_to(x=x,y=y)
     arm.move_to(z=350)
     Save_2_grip.reset()
@@ -267,9 +270,10 @@ for i in range(len(environment_coor)):
         arm.cam_move_to(x=offset_x, y=offset_y, alpha=offset_Rz)
     #------------------向下並抓起移回原點--------------------
         arm.grip_move_to(x=0, y=40)
-        arm.move_to(z=185)
+        arm.move_to(z=255)
         # arm.grip_move(110, 110, 110)#夾起
         arm.move_to(z=350)
+        arm.move_to(x=350)
         arm.move_to_origin()
         arm.move_to(z=pile_y_axis)
         # arm.grip_move(90, 10, 100)#放開
@@ -277,4 +281,5 @@ for i in range(len(environment_coor)):
 
 
 arm.terminate()
+time.sleep(10)
 

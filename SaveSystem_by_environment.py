@@ -39,15 +39,15 @@ class save_system:
                 self.count += 1
             
             
-            # if (input_count/2 < sum(1 for line in open("SaveCoor_environment.txt") if line.startswith("green")) <= input_count):
-            #     self.completed_Save = True
-                
-            # 遍歷每一行，計算行數
-            with open("SaveCoor_environment.txt", 'r') as file:
-                line_count = sum(1 for line in file)
-            # 檢查是否有足夠的行數符合條件 放4個方塊
-            if line_count >= input_count * 4:
+            if (input_count/2 < sum(1 for line in open("SaveCoor_environment.txt") if line.startswith("green")) <= input_count):
                 self.completed_Save = True
+                
+            # # 遍歷每一行，計算行數
+            # with open("SaveCoor_environment.txt", 'r') as file:
+            #     line_count = sum(1 for line in file)
+            # # 檢查是否有足夠的行數符合條件 放4個方塊
+            # if line_count >= input_count * 4:
+            #     self.completed_Save = True
 
         
     def get_coordinates_by_color(self, colors: list):
