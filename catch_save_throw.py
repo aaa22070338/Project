@@ -50,6 +50,22 @@ class CatchAndSave:
                     file.write(']')
                 cls.completed_Save = True
 
+    
+    @classmethod
+    def coordinates(cls, file_path):
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+        list_x = [item["x"][0] for item in data]
+        list_y = [item["y"][0] for item in data]
+        list_rz = [item["rz"][0] for item in data]
+        list_T =np.array( [list_x , list_y , list_rz ]).T
+        median_value = np.median(list_T , axis=0)
+        lower_limit = median_value - 3
+        upper_limit = median_value + 3
+        data_b = np.unique(np.clip(list_T, lower_limit, upper_limit), axis=0)
+        average = np.mean(data_b ,axis = 0)
+        return average
+
     # @classmethod
     # def coordinates_x(cls, file_path):
     #     with open(file_path, 'r') as file:
@@ -76,22 +92,6 @@ class CatchAndSave:
     #     median_value = statistics.median(list_rz)
     #     average_rz = statistics.mean(value for value in list_rz if median_value - 3 <= value <= median_value + 3)
     #     return average_rz
-    
-    @classmethod
-    def coordinates(cls, file_path):
-        with open(file_path, 'r') as file:
-            data = json.load(file)
-        list_x = [item["x"][0] for item in data]
-        list_y = [item["y"][0] for item in data]
-        list_rz = [item["rz"][0] for item in data]
-        list_T =np.array( [list_x , list_y , list_rz ]).T
-        median_value = np.median(list_T , axis=0)
-        lower_limit = median_value - 3
-        upper_limit = median_value + 3
-        data_b = np.unique(np.clip(list_T, lower_limit, upper_limit), axis=0)
-        average = np.mean(data_b ,axis = 0)
-        return average
-
 
 
 
