@@ -12,8 +12,8 @@ import serial
 
 #顏色順序的要求
 color_input = "green"
-
-color_list = ['green']
+#['green' ,'yellow','red','purple','blue']
+color_list = ['green' ,'yellow','red','purple','blue']
 print(color_list)
 index = 0
 #連線
@@ -203,12 +203,10 @@ while index < len(color_list):
     cv2.destroyAllWindows()
     #移動
     file_path = "input_file_a.json"
-    environment_coor_x = save_coor.coordinates_x(file_path)
-    environment_coor_y = save_coor.coordinates_y(file_path)
-    print(environment_coor_x)    
-    print(environment_coor_y)
+    environment_coor = save_coor.coordinates(file_path)
+    print(environment_coor)    
     arm.move_to(y=400)
-    arm.move_to(x=environment_coor_x,y=environment_coor_y-80)
+    arm.move_to(x=environment_coor[0],y=environment_coor[1]-80)
     arm.move_to(z=350)
     save_coor.reset()
     #手臂相機確認座標
@@ -244,7 +242,7 @@ while index < len(color_list):
                     text_loc_rvec = (5, 32 + vertical_offset)
                     text_loc_check = (400, 15 + vertical_offset)
 
-                    save_coor.catch_save(color_name, [float(x)], [float(y)], [float(rz)], 5)
+                    save_coor.catch_save(color_name, [float(x)], [float(y)], [float(rz)], 9)
                     xyz_str = [f"{c}: {v[0]:.2f}" for c, v in zip("xyz", [x, y, z])]
                     cv2.putText(img, f"{color_name} {', '.join(xyz_str)}", text_loc_tvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
                     # cv2.putText(img, f"Rotate Z: {rz:.1f},   Rotate Y: {ry:.1f},   Rotate X: {rz:.1f}", text_loc_rvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
@@ -262,20 +260,19 @@ while index < len(color_list):
     cv2.destroyAllWindows()
 
     #-------移動---------
-    environment_coor_x = save_coor.coordinates_x(file_path)
-    environment_coor_y = save_coor.coordinates_y(file_path)
-    environment_coor_rz = save_coor.coordinates_rz(file_path)
-    print(environment_coor_x)    
-    print(environment_coor_y)    
-    print(environment_coor_rz)
-    arm.cam_move_to(x=environment_coor_x,y=environment_coor_y,alpha=environment_coor_rz)    
+    environment_coor = save_coor.coordinates(file_path)
+    print(environment_coor)    
+
+    if environment_coor[2] > 45 :
+        arm.cam_move_to(x=environment_coor[0],y=environment_coor[1],alpha=environment_coor[2] - 90)    
+    else:    
+        arm.cam_move_to(x=environment_coor[0],y=environment_coor[1],alpha=environment_coor[2])    
     arm.grip_move_to(x=0, y=80)
     arm.move_to(z=255)
     # arm.grip_move(110, 110, 110)#夾起
     #arm.grip_complete_close()
     arm.move_to(z=350)
     arm.move_to(x=350)
-
     arm.move_to_origin()
     arm.move_to(z=255 + (index*50))
     # arm.grip_move(90, 10, 100)#放開
