@@ -22,18 +22,18 @@ TCP_PORT = 3000  #  Robot Port
 BUFFER_SIZE = 1024  #  Buffer size of the channel, probably 1024 or 4096
 ser =serial.Serial("COM15" , 9600 , timeout =1)
 # gripper_port = '/dev/ttyUSB2'  # gripper USB port to linux
-# gripper_port = "COM12"  # gripper USB port to windows
+gripper_port = "COM12"  # gripper USB port to windows
 global c
 c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  #  Initialize the communication the robot through TCP as a client, the robot is the server.
 #  Connect the ethernet cable to the robot electric box first
 c.connect((TCP_IP, TCP_PORT))
-arm = bot.robotic_arm(None,c)
+arm = bot.robotic_arm(gripper_port,c)
 arm.set_arm_sleep_time(0.05)
-arm.set_girpper_sleep_time(0.75)
-arm.set_offset(3,0,-90)
+arm.set_girpper_sleep_time(1)
+arm.set_offset(3,1,-90)
 arm.move_to_origin()
 arm.move_to(rz=0)
-#arm.grip_complete_open()
+arm.grip_complete_open()
 
 
 model_part = YOLO("./cube_surface.pt")
@@ -205,7 +205,7 @@ while index < len(color_list):
     file_path = "input_file_a.json"
     environment_coor = save_coor.coordinates(file_path)
     print(environment_coor)    
-    arm.move_to(y=400)
+    arm.move_to(y=350)
     arm.move_to(x=environment_coor[0],y=environment_coor[1]-80)
     arm.move_to(z=350)
     save_coor.reset()
@@ -263,20 +263,19 @@ while index < len(color_list):
     environment_coor = save_coor.coordinates(file_path)
     print(environment_coor)    
 
-    if environment_coor[2] > 45 :
+    if environment_coor[2] >= 45 :
         arm.cam_move_to(x=environment_coor[0],y=environment_coor[1],alpha=environment_coor[2] - 90)    
     else:    
         arm.cam_move_to(x=environment_coor[0],y=environment_coor[1],alpha=environment_coor[2])    
     arm.grip_move_to(x=0, y=80)
-    arm.move_to(z=255)
+    arm.move_to(z=240)
     # arm.grip_move(110, 110, 110)#夾起
-    #arm.grip_complete_close()
-    arm.move_to(z=350)
-    arm.move_to(x=350)
+    arm.grip_complete_close()
+    arm.move_to(x=350 , z=350)
     arm.move_to_origin()
-    arm.move_to(z=255 + (index*50))
+    arm.move_to(z=245 + (index*50))
     # arm.grip_move(90, 10, 100)#放開
-    # arm.grip_complete_open#放開
+    arm.grip_complete_open#放開
     arm.move_to_origin()
 
     index += 1
