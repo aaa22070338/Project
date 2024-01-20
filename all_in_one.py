@@ -13,16 +13,16 @@ import serial
 #顏色順序的要求
 color_input = "green"
 #['green' ,'yellow','red','purple','blue']
-color_list = ['green' ,'yellow','red','purple','blue']
+color_list:list[CD.ColorType] = ['green', 'yellow', 'purple']
 print(color_list)
 index = 0
 #連線
 TCP_IP = "192.168.0.1"  #  Robot IP address. Start the TCP server from the robot before starting this code
 TCP_PORT = 3000  #  Robot Port
 BUFFER_SIZE = 1024  #  Buffer size of the channel, probably 1024 or 4096
-ser =serial.Serial("COM15" , 9600 , timeout =1)
+
 # gripper_port = '/dev/ttyUSB2'  # gripper USB port to linux
-gripper_port = "COM12"  # gripper USB port to windows
+gripper_port = "COM15"  # gripper USB port to windows
 global c
 c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  #  Initialize the communication the robot through TCP as a client, the robot is the server.
 #  Connect the ethernet cable to the robot electric box first
@@ -30,8 +30,9 @@ c.connect((TCP_IP, TCP_PORT))
 arm = bot.robotic_arm(gripper_port,c)
 arm.set_arm_sleep_time(0.05)
 arm.set_girpper_sleep_time(1)
-arm.set_offset(3,1,-90)
+arm.set_offset(3,1.5,-93)
 arm.move_to_origin()
+origin_x,origin_y,_,_,_,_ = arm.position
 arm.move_to(rz=0)
 arm.grip_complete_open()
 
@@ -267,15 +268,16 @@ while index < len(color_list):
         arm.cam_move_to(x=environment_coor[0],y=environment_coor[1],alpha=environment_coor[2] - 90)    
     else:    
         arm.cam_move_to(x=environment_coor[0],y=environment_coor[1],alpha=environment_coor[2])    
-    arm.grip_move_to(x=0, y=80)
+    arm.grip_move_to(x=-4, y=90)
     arm.move_to(z=240)
     # arm.grip_move(110, 110, 110)#夾起
     arm.grip_complete_close()
-    arm.move_to(x=350 , z=350)
-    arm.move_to_origin()
-    arm.move_to(z=245 + (index*50))
+    arm.move_to(z=260 + ((index+1)*50))
+    arm.move_to(x=origin_x)
+    arm.move_to(y=origin_y,rz=0)
+    arm.move_to(z=230 + (index*50))
     # arm.grip_move(90, 10, 100)#放開
-    arm.grip_complete_open#放開
+    arm.grip_complete_open()#放開
     arm.move_to_origin()
 
     index += 1

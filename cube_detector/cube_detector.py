@@ -5,7 +5,7 @@ from ultralytics import YOLO
 import copy
 from cube_detector.helpers import *
 
-ColorType : TypeAlias = Literal['red','blue','green','yellow','white','orange']
+ColorType : TypeAlias = Literal['red','blue','green','yellow','white','orange','black','purple']
 DetectMethod : TypeAlias = Literal['tracking']
 class CubeDetector:
     def __init__(self, cube_model:YOLO,cube_surface_model:YOLO, cube_color_model:YOLO) -> None:

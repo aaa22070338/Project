@@ -18,28 +18,22 @@ BUFFER_SIZE = 1024  #  Buffer size of the channel, probably 1024 or 4096
 # gripper_port = '/dev/ttyUSB2'  # gripper USB port to linux
 gripper_port = "COM15"  # gripper USB port to windows
 
-ser = serial.Serial("COM15", 9600, timeout=1)
-time.sleep(1.4)
-
 global c
 c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  #  Initialize the communication the robot through TCP as a client, the robot is the server.
 #  Connect the ethernet cable to the robot electric box first
 c.connect((TCP_IP, TCP_PORT))
 
-arm = bot.robotic_arm(None ,c)
+arm = bot.robotic_arm(gripper_port ,c)
 arm.set_arm_sleep_time(0.05)
-# arm.set_girpper_sleep_time(0.75)
-arm.set_offset(3,0,-90)
+arm.set_girpper_sleep_time(1)
+arm.set_offset(3,1.5,-93)
+# arm.set_origin([360-21,-25-13 , 500, -180, 0, 0])
 arm.move_to_origin()
 arm.move_to(rz=0)
-# arm.grip_activate()
-# arm.grip_complete_close()
-# val = ser.write("0".encode("utf-8"))
-# arm.grip_complete_open()
+arm.grip_complete_open()
 
 model_part = YOLO("./cube_surface.pt")
 model_region = YOLO("./cube.pt")
-
 model = YOLO("./cube.pt")
 surface_model = YOLO('./cube_surface.pt')
 model_color = YOLO('./cube_color.pt')
@@ -50,9 +44,11 @@ with open("./fixedCam_matrix/MultiMatrix_fixed_640_480.npz","rb") as file:
     mtx = np.load(file)["camMatrix"]
     dist = np.load(file)["distCoef"]
 
+series : list[CD.ColorType] = ["yellow", "green", "purple"]#---------------------------------------------------------------------------------------------------------------------------顏色輸入
+
 CT = CT.block_detect(model_part, model_region)
 detector = CD.CubeDetector(model, surface_model, model_color) 
-Save_2_environ = SaveSystem_by_environment.save_system()
+Save_2_environ = SaveSystem_by_environment.save_system(series)
 Save_2_grip = SaveSystem_by_grip.save_system()
 
 Save_2_environ.reset()
@@ -78,7 +74,6 @@ object_points = np.array( #中心
         [25, 25, 0],  # 3
         [25, -25, 0],  # 4
     ], dtype=np.float32)
-
 #-------------------抓環境座標----------------------
 cap = cv2.VideoCapture(1,cv2.CAP_DSHOW)
 
@@ -91,9 +86,8 @@ _, table_rmtx, table_tvec, _, _, _, _  = cv2.decomposeProjectionMatrix(fixed_to_
 
 table_rvec, _ = cv2.Rodrigues(table_rmtx)
 table_tvec = fixed_to_table[0:3,3]
-print(table_tvec)   
+# print(table_tvec)   
 
-# color = "yellow"
 while True:
     cap_success, frame = cap.read()
     if cap_success:
@@ -101,13 +95,14 @@ while True:
         scale = height / frame.shape[0]
         frame = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
         #  將圖片丟入偵測器進行偵測
-        result_img = detector.detect(frame, index=None, color=None,show_process_img=True)
+        result_img = detector.detect(frame, index=None, color=None,show_process_img=False)
         
         # 讀取抓到的角點座標
         for color_name in list(detector.cube_contour_outer.keys()):
             cube_imagePoints = detector.get_cube_sequence_imagePoints(color_name)
             if cube_imagePoints is None:
                 cv2.imshow("result", frame)
+
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break
                 continue
@@ -185,7 +180,7 @@ while True:
                 # print(f"{x=}")
                 # print(f"{y=}")
                 # print(f"{z=}")
-                Save_2_environ.save_coordinate_by_color(color_name,x, y, z, 8)
+                Save_2_environ.save_coordinate_by_color(color_name, x, y, 8)
 
         cv2.imshow("result", result_img)
         Key = cv2.waitKey(1)
@@ -199,19 +194,18 @@ while True:
         break
 cap.release()
 cv2.destroyAllWindows()
-
+isFirst = True
 #-------------------取出環境座標並移動-------------------
-series = ["green"]
+
 environment_coor = Save_2_environ.get_coordinates_by_color(series)
 print(environment_coor)
 for i in range(len(environment_coor)):
-    pile_y_axis = 255 + (i*50)
+    pile_z_axis = 230 + (i*50)
 
     x = environment_coor[i][0]
     y = environment_coor[i][1]
     arm.move_to(y=400)
-    arm.move_to(x=x,y=y)
-    arm.move_to(z=350)
+    arm.move_to(x=x, y=y-80, z=350)
     Save_2_grip.reset()
     #------------------夾爪抓偏移座標並移動---------------------
     lens = cv2.VideoCapture(0,cv2.CAP_DSHOW)
@@ -252,7 +246,6 @@ for i in range(len(environment_coor)):
                 else:
                     cv2.putText(img, "Moving", text_loc_check, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255) ,2)
                 vertical_offset += 34
-                cv2.circle(img, (int(x[0]), int(y[0])), 5, (0, 0, 255), -1)
         cv2.imshow("test", img)
         cv2.waitKey(1)
         if Save_2_grip.completed_Save == True:
@@ -260,26 +253,34 @@ for i in range(len(environment_coor)):
     lens.release()
     cv2.destroyAllWindows()
 
-    grip_coor = Save_2_grip.get_coordinates_by_test(series[i])
+    grip_coor = Save_2_grip.get_coordinates_by_color(series[i])
     print(grip_coor)
     for j in range(len(grip_coor)):
         offset_x = grip_coor[j][0]
         offset_y = grip_coor[j][1] 
         offset_Rz = grip_coor[j][2]
+        if offset_Rz >= 45:
+            offset_Rz = offset_Rz -90
         print(offset_x, offset_y, offset_Rz)
         arm.cam_move_to(x=offset_x, y=offset_y, alpha=offset_Rz)
     #------------------向下並抓起移回原點--------------------
-        arm.grip_move_to(x=0, y=40)
-        arm.move_to(z=255)
-        # arm.grip_move(110, 110, 110)#夾起
-        arm.move_to(z=350)
-        arm.move_to(x=350)
-        arm.move_to_origin()
-        arm.move_to(z=pile_y_axis)
-        # arm.grip_move(90, 10, 100)#放開
-        arm.move_to_origin()
+        arm.grip_move_to(x=-5, y=90, z=240)
+        arm.grip_complete_close()#夾起
+        if isFirst:
+            arm.move_to(z=pile_z_axis + 80)#往上移
+            arm.move_to(x=350, y=400)
+            arm.move_to_origin(move_z=pile_z_axis + 80)#移動到放置位置
+            arm.move_to(z=pile_z_axis-5)#向下推
+            isFirst = False
+        else:
+            arm.move_to(z=pile_z_axis+25)#往上移
+            arm.move_to(x=350, y=400)
+            arm.move_to_origin(move_z=pile_z_axis+10)#移動到放置位置
+            arm.move_to(z=pile_z_axis-5)#向下推
+        arm.grip_complete_open()#放開
+        arm.move_to_origin(move_z=470)
 
-
+arm.move_to_origin()
 arm.terminate()
-time.sleep(10)
+time.sleep(3)
 

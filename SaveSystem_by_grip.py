@@ -47,27 +47,27 @@ class save_system:
             if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("purple"))  == input_count):
                 self.completed_Save = True
         
-    def get_coordinates_by_color(self, colors: str):
-        with open("SaveCoor_grip.txt", 'r') as read:
-            lines = read.readlines()
-        all_coordinates = []
-        for color in colors:
-            coordinates = []
-            current_color = color
+    # def get_coordinates_by_color(self, colors: str):
+    #     with open("SaveCoor_grip.txt", 'r') as read:
+    #         lines = read.readlines()
+    #     all_coordinates = []
+    #     for color in colors:
+    #         coordinates = []
+    #         current_color = color
 
-            for line in lines:
-                if line.startswith(current_color):
-                    x, y, z = map(float, line.strip(f"{color}").split('\t'))
-                    coordinates.append((x, y, z))
+    #         for line in lines:
+    #             if line.startswith(current_color):
+    #                 x, y, z = map(float, line.strip(f"{color}").split('\t'))
+    #                 coordinates.append((x, y, z))
 
-            if coordinates:
-                coordinates = np.vstack(coordinates)
+    #         if coordinates:
+    #             coordinates = np.vstack(coordinates)
 
-            coordinates = self.remove_outlier(coordinates)
-            all_coordinates.append(coordinates)
-        return all_coordinates
+    #         coordinates = self.remove_outlier(coordinates)
+    #         all_coordinates.append(coordinates)
+    #     return all_coordinates
 
-    def get_coordinates_by_test(self, color: str):
+    def get_coordinates_by_color(self, color: str):
         coordinates = []
         all_coordinates = []
         with open("SaveCoor_grip.txt", 'r') as read:
@@ -91,7 +91,7 @@ class save_system:
         # 計算 IQR（上四分位距 - 下四分位距）
         IQR = Q3 - Q1
         # 定義極端值範圍
-        outlier_range = 0.5 * IQR
+        outlier_range = 1 * IQR
         # 過濾掉極端值
         filtered_coordinates = [coord for coord in coordinates if np.all((Q1 - outlier_range) <= coord) and np.all(coord <= (Q3 + outlier_range))]
         for coord in filtered_coordinates:

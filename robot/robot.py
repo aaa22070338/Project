@@ -38,7 +38,9 @@ class robotic_arm:
     def __init__(self, gripper_port: str, arm_connection: socket.socket | None = None) -> None:
         self.arm_connection = arm_connection
         self.gripper_port = gripper_port
-        self.origin = [360,-25 , 500, -180, 0, 0]
+        self.ser = serial.Serial(self.gripper_port,9600,timeout=1)
+        time.sleep(2)
+        self.origin = [360-26,-25-13+7 , 500, -180, 0, 0]
         self.position = None
         self.arm_sleep_time = 0.05
         self.gripper_sleep_time = 1
@@ -46,9 +48,12 @@ class robotic_arm:
         self.ry_offset = 0
         self.rz_offset = 0
         self.C2G_transfer_matrix = np.array([
-            [-1, 0, 1.18514],
-            [0, 1, 32.6082],
+            [-1, 0, 7.6787],
+            [0, 1, 96.4183],
             [0, 0, 1]
+            # [-1, 0, 1.18514],
+            # [0, 1, 32.6082],
+            # [0, 0, 1]
         ])
 
     # @check_connection
@@ -203,8 +208,10 @@ class robotic_arm:
 
     @check_connection
     @print_update_position
-    def move_to_origin(self):
+    def move_to_origin(self, move_z:str | None = 500):
         position = self.__add_offset(copy.deepcopy(self.origin))
+        if move_z:
+            position[2] = move_z
         robot_move(position, self.arm_connection)
         return self
 
@@ -279,7 +286,7 @@ class robotic_arm:
 
     @check_connection
     @print_update_position
-    def grip_move_to(self, x, y):
+    def grip_move_to(self, x, y, z: None = None):
         current_position = self.position
         rz = np.radians(current_position[5])
         G2A_transfer_matrix = np.array([  # gripper to arm
@@ -292,6 +299,8 @@ class robotic_arm:
         position[0] = grip_position[0]
         position[1] = grip_position[1]
         position = self.__add_offset(position)
+        if z:
+            position[2] = z
         robot_move(position, self.arm_connection)
         return self
 
@@ -309,11 +318,15 @@ class robotic_arm:
         return self
 
     def grip_complete_open(self):
-        gripMove(0, 255, 255, self.gripper_port, self.gripper_sleep_time)
+        # gripMove(0, 255, 255, self.gripper_port, self.gripper_sleep_time)
+        val = self.ser.write("0".encode("utf-8"))
+        time.sleep(self.gripper_sleep_time)
         return self
 
     def grip_complete_close(self):
-        gripMove(255, 255, 255, self.gripper_port, self.gripper_sleep_time)
+        # gripMove(255, 255, 255, self.gripper_port, self.gripper_sleep_time)
+        val = self.ser.write("1".encode("utf-8"))
+        time.sleep(self.gripper_sleep_time)
         return self
 
     def __add_offset(self, position: list):

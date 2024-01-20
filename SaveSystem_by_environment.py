@@ -1,21 +1,23 @@
 import numpy as np
 
 class save_system:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, series) -> None:
+        self.series = series
+        for i in range(len(self.series)):
+            setattr(self, f"color_{i}", False)
+
     isclear = False
     completed_Save = False
-    count = 0
+    times = 0
 
-    @classmethod
+    # @classmethod
     def reset(self):
         self.isclear = False
         self.completed_Save = False
-        self.count = 0
+        self.times = 0
 
-    @classmethod
-    def save_coordinate_by_color(self, color_name, x, y, Rz, input_count):
-        possible_color = ["red", "yellow", "green", "purple"]
+    # @classmethod
+    def save_coordinate_by_color(self, color_name, x, y, input_count):
         if self.completed_Save == False:
             if self.isclear == False:
                 #清除檔案
@@ -27,7 +29,7 @@ class save_system:
             color_coordinates_count = sum(1 for line in open("SaveCoor_environment.txt") if line.startswith(color_name))
         
             if color_coordinates_count < input_count:
-                data = np.array([x, y, Rz])
+                data = np.array([x, y])
                 data_with_newline = np.vstack([data, np.zeros_like(data[0])])
                 data_with_newline = data_with_newline.T
 
@@ -36,12 +38,19 @@ class save_system:
                 with open("SaveCoor_environment.txt", 'a') as file:
                     file.write(header_str)
                     file.write('\n')
-                self.count += 1
+                self.times += 1
             
+            # if(len(self.color_set) == len(self.series)):
+            #     self.completed_Save = True
             
-            if (input_count/2 < sum(1 for line in open("SaveCoor_environment.txt") if line.startswith("green")) <= input_count):
+            for i in range(len(self.series)):
+                if (sum(1 for line in open("SaveCoor_environment.txt") if line.startswith(self.series[i])) >= input_count):
+                    setattr(self, f"color_{i}", True)
+
+            if all(getattr(self, f"color_{i}") for i in range(len(self.series))):
                 self.completed_Save = True
-                
+            # if (sum(1 for line in open("SaveCoor_environment.txt") if line.startswith("green")) >= input_count):
+            #     self.current_count += 1
             # # 遍歷每一行，計算行數
             # with open("SaveCoor_environment.txt", 'r') as file:
             #     line_count = sum(1 for line in file)
