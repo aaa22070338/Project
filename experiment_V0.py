@@ -9,7 +9,6 @@ import cube_detector.cube_detector as CD
 import SaveSystem_by_environment
 import SaveSystem_by_grip
 import time
-import serial
 #-------------連線-------------
 TCP_IP = "192.168.0.1"  #  Robot IP address. Start the TCP server from the robot before starting this code
 TCP_PORT = 3000  #  Robot Port
@@ -26,17 +25,17 @@ c.connect((TCP_IP, TCP_PORT))
 arm = bot.robotic_arm(gripper_port ,c)
 arm.set_arm_sleep_time(0.05)
 arm.set_girpper_sleep_time(1)
-arm.set_offset(3,1.5,-93)
+arm.set_offset(3,2.5,-93)
 # arm.set_origin([360-21,-25-13 , 500, -180, 0, 0])
 arm.move_to_origin()
 arm.move_to(rz=0)
 arm.grip_complete_open()
 
-model_part = YOLO("./cube_surface.pt")
-model_region = YOLO("./cube.pt")
-model = YOLO("./cube.pt")
+cube_model = YOLO("./cube.pt")
 surface_model = YOLO('./cube_surface.pt')
-model_color = YOLO('./cube_color.pt')
+
+model_color_grip = YOLO("./grip_cube_color.pt")
+model_color_emvironment = YOLO('./cube_color.pt')
 
 with open('./hand_matrix/calibration.pkl', 'rb') as file:
     camera_matrix, dist_coeff = pickle.load(file)
@@ -44,10 +43,10 @@ with open("./fixedCam_matrix/MultiMatrix_fixed_640_480.npz","rb") as file:
     mtx = np.load(file)["camMatrix"]
     dist = np.load(file)["distCoef"]
 
-series : list[CD.ColorType] = ["yellow", "green", "purple"]#---------------------------------------------------------------------------------------------------------------------------顏色輸入
+series : list[CD.ColorType] = ["yellow", 'purple']#---------------------------------------------------------------------------------------------------------------------------顏色輸入
 
-CT = CT.block_detect(model_part, model_region)
-detector = CD.CubeDetector(model, surface_model, model_color) 
+CT = CT.block_detect(surface_model, cube_model, model_color_grip)
+detector = CD.CubeDetector(cube_model, surface_model, model_color_emvironment) 
 Save_2_environ = SaveSystem_by_environment.save_system(series)
 Save_2_grip = SaveSystem_by_grip.save_system()
 
@@ -237,7 +236,7 @@ for i in range(len(environment_coor)):
                 text_loc_rvec = (5, 32 + vertical_offset)
                 text_loc_check = (400, 15 + vertical_offset)
 
-                Save_2_grip.save_coordinate_by_color(color_name, x, y, RotationZ, 5)
+                Save_2_grip.save_coordinate_by_color(series[i], x, y, RotationZ, 15)
                 xyz_str = [f"{c}: {v[0]:.2f}" for c, v in zip("xyz", [x, y, z])]
                 cv2.putText(img, f"{color_name} {', '.join(xyz_str)}", text_loc_tvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
                 cv2.putText(img, f"Rotate Z: {rz:.1f},   Rotate Y: {ry:.1f},   Rotate X: {rx:.1f}", text_loc_rvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
@@ -264,7 +263,7 @@ for i in range(len(environment_coor)):
         print(offset_x, offset_y, offset_Rz)
         arm.cam_move_to(x=offset_x, y=offset_y, alpha=offset_Rz)
     #------------------向下並抓起移回原點--------------------
-        arm.grip_move_to(x=-5, y=90, z=240)
+        arm.grip_move_to(x=-5, y=95, z=240)
         arm.grip_complete_close()#夾起
         if isFirst:
             arm.move_to(z=pile_z_axis + 80)#往上移
@@ -275,7 +274,7 @@ for i in range(len(environment_coor)):
         else:
             arm.move_to(z=pile_z_axis+25)#往上移
             arm.move_to(x=350, y=400)
-            arm.move_to_origin(move_z=pile_z_axis+10)#移動到放置位置
+            arm.move_to_origin(move_z=pile_z_axis+15)#移動到放置位置
             arm.move_to(z=pile_z_axis-5)#向下推
         arm.grip_complete_open()#放開
         arm.move_to_origin(move_z=470)

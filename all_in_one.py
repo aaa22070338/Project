@@ -12,8 +12,8 @@ import serial
 
 #顏色順序的要求
 color_input = "green"
-#['green' ,'yellow','red','purple','blue']
-color_list:list[CD.ColorType] = ['green', 'yellow', 'purple']
+#['green' ,'yellow','red','purple','black']
+color_list:list[CD.ColorType] = ['yellow']
 print(color_list)
 index = 0
 #連線
@@ -30,18 +30,17 @@ c.connect((TCP_IP, TCP_PORT))
 arm = bot.robotic_arm(gripper_port,c)
 arm.set_arm_sleep_time(0.05)
 arm.set_girpper_sleep_time(1)
-arm.set_offset(3,1.5,-93)
+arm.set_offset(3,2.5,-93)
 arm.move_to_origin()
 origin_x,origin_y,_,_,_,_ = arm.position
 arm.move_to(rz=0)
 arm.grip_complete_open()
 
-
-model_part = YOLO("./cube_surface.pt")
-model_region = YOLO("./cube.pt")
-model = YOLO("./cube.pt")
+cube_model = YOLO("./cube.pt")
 surface_model = YOLO('./cube_surface.pt')
-model_color = YOLO('./cube_color.pt')
+
+model_color_grip = YOLO("./grip_cube_color.pt")
+model_color_emvironment = YOLO('./cube_color.pt')
 
 with open('./hand_matrix/calibration.pkl', 'rb') as file:
     camera_matrix, dist_coeff = pickle.load(file)
@@ -49,8 +48,9 @@ with open("./fixedCam_matrix/MultiMatrix_fixed_640_480.npz","rb") as file:
     mtx = np.load(file)["camMatrix"]
     dist = np.load(file)["distCoef"]
 
-CT = CT.block_detect(model_part, model_region)
-detector = CD.CubeDetector(model, surface_model , model_color)
+CT = CT.block_detect(surface_model, cube_model, model_color_grip)
+detector = CD.CubeDetector(cube_model, surface_model, model_color_emvironment) 
+
 save_coor =catch_save_throw.CatchAndSave()
 
 
@@ -79,7 +79,6 @@ object_points = np.array( #中心
 )
 #環境相機確認座標(取10次的平均值)
 
-
 fixed_to_table = np.float32(
     [[0, 1, 0, -650],
      [1, 0, 0, -250],
@@ -89,7 +88,7 @@ _, table_rmtx, table_tvec, _, _, _, _  = cv2.decomposeProjectionMatrix(fixed_to_
 
 table_rvec, _ = cv2.Rodrigues(table_rmtx)
 table_tvec = fixed_to_table[0:3,3]
-print(table_tvec)   
+print(table_tvec)
 
 # color = "yellow"
 while index < len(color_list):
@@ -188,7 +187,7 @@ while index < len(color_list):
                     # print(f"{x=}")
                     # print(f"{y=}")
                     # print(f"{z=}")
-                    save_coor.catch_save(color_name,[x],[y],[rz],9)
+                    save_coor.catch_save([x],[y],[rz],9)
 
             cv2.imshow("result", result_img)
             Key = cv2.waitKey(1)
@@ -243,7 +242,7 @@ while index < len(color_list):
                     text_loc_rvec = (5, 32 + vertical_offset)
                     text_loc_check = (400, 15 + vertical_offset)
 
-                    save_coor.catch_save(color_name, [float(x)], [float(y)], [float(rz)], 9)
+                    save_coor.catch_save( [float(x)], [float(y)], [float(rz)], 9)
                     xyz_str = [f"{c}: {v[0]:.2f}" for c, v in zip("xyz", [x, y, z])]
                     cv2.putText(img, f"{color_name} {', '.join(xyz_str)}", text_loc_tvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
                     # cv2.putText(img, f"Rotate Z: {rz:.1f},   Rotate Y: {ry:.1f},   Rotate X: {rz:.1f}", text_loc_rvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
@@ -268,7 +267,7 @@ while index < len(color_list):
         arm.cam_move_to(x=environment_coor[0],y=environment_coor[1],alpha=environment_coor[2] - 90)    
     else:    
         arm.cam_move_to(x=environment_coor[0],y=environment_coor[1],alpha=environment_coor[2])    
-    arm.grip_move_to(x=-4, y=90)
+    arm.grip_move_to(x=-4, y=95)
     arm.move_to(z=240)
     # arm.grip_move(110, 110, 110)#夾起
     arm.grip_complete_close()

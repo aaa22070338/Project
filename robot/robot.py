@@ -40,7 +40,7 @@ class robotic_arm:
         self.gripper_port = gripper_port
         self.ser = serial.Serial(self.gripper_port,9600,timeout=1)
         time.sleep(2)
-        self.origin = [360-26,-25-13+7 , 500, -180, 0, 0]
+        self.origin = [360-26,-25-13+4 , 500, -180, 0, 0]
         self.position = None
         self.arm_sleep_time = 0.05
         self.gripper_sleep_time = 1

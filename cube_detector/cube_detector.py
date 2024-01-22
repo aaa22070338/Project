@@ -136,6 +136,8 @@ class CubeDetector:
                 elif box.cls.cpu().numpy()[0] == 4:
                     self.process_color = "purple"
 
+
+
         # self.process_color = maximum_pixels_color
 
         if self.process_color is None:

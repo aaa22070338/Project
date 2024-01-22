@@ -38,14 +38,16 @@ class save_system:
             # if color_coordinates_count + 1 == 4:
             #     print(f"{color_name}，已達上限")
 
-            if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("green"))  == input_count):
+            if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith(color_name))  == input_count):
                 self.completed_Save = True
-            if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("yellow"))  == input_count):
-                self.completed_Save = True
-            if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("red"))  == input_count):
-                self.completed_Save = True
-            if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("purple"))  == input_count):
-                self.completed_Save = True
+            # if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("yellow"))  == input_count):
+            #     self.completed_Save = True
+            # if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("red"))  == input_count):
+            #     self.completed_Save = True
+            # if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("purple"))  == input_count):
+            #     self.completed_Save = True
+            # if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("black"))  == input_count):
+            #     self.completed_Save = True
         
     # def get_coordinates_by_color(self, colors: str):
     #     with open("SaveCoor_grip.txt", 'r') as read:

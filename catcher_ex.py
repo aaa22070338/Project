@@ -84,15 +84,15 @@ class block_detect:
         predict_color = self.color_model(self.img, verbose=False,conf=0.7)
         for result in predict_color:
             for box in result.boxes:
-                if box.cls.cpu().numpy()[0] == 0:
+                if box.cls.cpu().numpy()[0] == 2:
                     color = "red"
-                elif box.cls.cpu().numpy()[0] == 1:
+                elif box.cls.cpu().numpy()[0] == 0:
                     color = "black"
-                elif box.cls.cpu().numpy()[0] == 2:
-                    color = "yellow"
                 elif box.cls.cpu().numpy()[0] == 3:
-                    color = "green"
+                    color = "yellow"
                 elif box.cls.cpu().numpy()[0] == 4:
+                    color = "green"
+                elif box.cls.cpu().numpy()[0] == 1:
                     color = "purple"
         if color is not None and color in color_dict:
             return color_dict[color]#回傳rgb值

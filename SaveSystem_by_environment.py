@@ -87,7 +87,7 @@ class save_system:
         # 計算 IQR（上四分位距 - 下四分位距）
         IQR = Q3 - Q1
         # 定義極端值範圍
-        outlier_range = 0.3 * IQR
+        outlier_range = 1 * IQR
         # 過濾掉極端值
         filtered_coordinates = [coord for coord in coordinates if np.all((Q1 - outlier_range) <= coord) and np.all(coord <= (Q3 + outlier_range))]
         for coord in filtered_coordinates:

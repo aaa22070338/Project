@@ -17,7 +17,7 @@ class CatchAndSave:
         cls.count = 0
 
     @classmethod
-    def catch_save(cls ,color_name, x:list , y:list ,rz:list, input_count ):
+    def catch_save(cls , x:list , y:list ,rz:list, input_count ):
         cls.input_count = input_count
         if cls.completed_Save == False:
             if cls.isclear == False:
@@ -30,7 +30,6 @@ class CatchAndSave:
             #print(color_coordinates_count)
             if color_coordinates_count < input_count:
                 data = {
-                    "color_name": color_name,
                     "x": x,
                     "y": y,
                     "rz": rz
@@ -45,7 +44,7 @@ class CatchAndSave:
                     file.write('\n')    
                 cls.count += 1
 
-            if color_coordinates_count >= cls.input_count:
+            if color_coordinates_count >= cls.input_count - 1:
                 with open("input_file_a.json", 'a') as file:
                     file.write(']')
                 cls.completed_Save = True

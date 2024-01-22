@@ -5,11 +5,11 @@ import cube_detector.cube_detector as CD
 import pickle
 import SaveSystem_by_environment
 
-Save_2_environ = SaveSystem_by_environment.save_system()
-Save_2_environ.reset()
+
 
 model = YOLO("./yolov8n-seg-custom.pt")
 surface_model = YOLO('./cube_surface_seg2.pt')
+model_color_emvironment = YOLO('./grip_cube_color.pt')
 
 def draw_axis(img, corners, image_points):
     corner = tuple(corners[0].ravel())
@@ -25,7 +25,7 @@ def draw_z_lines(img, image_points):
     img = cv2.line(img, tuple(np.int16(image_points[1].ravel())), tuple(np.int16(image_points[3].ravel())), (128,128,0), 5)
     return img
 
-detector = CD.CubeDetector(model, surface_model)
+detector = CD.CubeDetector(model, surface_model, model_color_emvironment)
 cap = cv2.VideoCapture(1,cv2.CAP_DSHOW)
 # with open("test_calibration.pkl", "rb") as file:
 #     mtx, dist = pickle.load(file)
@@ -140,7 +140,7 @@ while True:
                 print(f"{x=}")
                 print(f"{y=}")
                 print(f"{z=}")
-                Save_2_environ.save_coordinate(color_name,x, y, z, 5)
+              
 
         cv2.imshow("result", result_img)
         key = cv2.waitKey(1)
