@@ -73,31 +73,7 @@ class block_detect:
         
         return color_deter[self.check_col]
 #-------------顏色抓取-----------------------    
-    # def detect_color_by_model(self, image):#抓方塊顏色by model
-    #     color_dict = {
-    #         "red": (0, 0, 255),
-    #         "yellow": (0, 255, 255),
-    #         "green": (0, 128, 0),
-    #         "purple": (160, 0, 160),
-    #         "black": (0, 0, 0)}
-    #     color = None
-    #     predict_color = self.color_model(self.img, verbose=False,conf=0.7)
-    #     for result in predict_color:
-    #         for box in result.boxes:
-    #             if box.cls.cpu().numpy()[0] == 0:
-    #                 color = "red"
-    #             elif box.cls.cpu().numpy()[0] == 1:
-    #                 color = "black"
-    #             elif box.cls.cpu().numpy()[0] == 2:
-    #                 color = "yellow"
-    #             elif box.cls.cpu().numpy()[0] == 3:
-    #                 color = "green"
-    #             elif box.cls.cpu().numpy()[0] == 4:
-    #                 color = "purple"
-    #     if color is not None and color in color_dict:
-    #         return color_dict[color]#回傳rgb值
-
-    def detect_cube(self, img, options:int=None):#回傳整體白色區域 or 輪廓，全部或選擇
+    def detect_color_by_model(self, image):#抓方塊顏色by model
         color_dict = {
             "red": (0, 0, 255),
             "yellow": (0, 255, 255),
@@ -106,6 +82,22 @@ class block_detect:
             "black": (0, 0, 0)}
         color = None
         predict_color = self.color_model(self.img, verbose=False,conf=0.7)
+        for result in predict_color:
+            for box in result.boxes:
+                if box.cls.cpu().numpy()[0] == 2:
+                    color = "red"
+                elif box.cls.cpu().numpy()[0] == 0:
+                    color = "black"
+                elif box.cls.cpu().numpy()[0] == 3:
+                    color = "yellow"
+                elif box.cls.cpu().numpy()[0] == 4:
+                    color = "green"
+                elif box.cls.cpu().numpy()[0] == 1:
+                    color = "purple"
+        if color is not None and color in color_dict:
+            return color_dict[color]#回傳rgb值
+
+    def detect_cube(self, img, options=None):#回傳整體白色區域 or 輪廓，全部或選擇
         self.img = img
         self.predict_region = self.cube_model(self.img, verbose=False, conf=0.7)[0]
         self.detections_region = sv.Detections.from_yolov8(self.predict_region)
@@ -124,33 +116,42 @@ class block_detect:
                 region_white_mask = np.where(region_mask != 0, 255, 0).astype(np.uint8)
                 self.region_mask = cv2.bitwise_and(self.img, self.img, mask=region_white_mask)
                 region_contours, _ = cv2.findContours(region_white_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                color_dict = {
+                    "red": (0, 0, 255),
+                    "yellow": (0, 255, 255),
+                    "green": (0, 128, 0),
+                    "purple": (160, 0, 160),
+                    "black": (0, 0, 0)}
+                color = None
+                predict_color = self.color_model(self.img, verbose=False,conf=0.7)
                 for result in predict_color:
                     for box in result.boxes:
                         x,y,w,h = box.xywh.cpu().numpy().flatten()
                         test_result = cv2.pointPolygonTest(region_contours[0], (x, y), False) # 計算重心是否位於方塊輪廓內部
+                        
                         if test_result <= 0:
                             continue
-                        if box.cls.cpu().numpy()[0] == 0:
+                        if box.cls.cpu().numpy()[0] == 2:
                             color = "red"
-                        elif box.cls.cpu().numpy()[0] == 1:
+                        elif box.cls.cpu().numpy()[0] == 0:
                             color = "black"
-                        elif box.cls.cpu().numpy()[0] == 2:
-                            color = "yellow"
                         elif box.cls.cpu().numpy()[0] == 3:
-                            color = "green"
+                            color = "yellow"
                         elif box.cls.cpu().numpy()[0] == 4:
+                            color = "green"
+                        elif box.cls.cpu().numpy()[0] == 1:
                             color = "purple"
                 if color is not None and color in color_dict:
                     yield self.region_mask, region_contours, color, color_dict[color]
 
-    def detect_surface(self, img, options:int = None):#回傳部分輪廓 ,算重心
+    def detect_surface(self, img, options=None):#回傳部分輪廓 ,算重心
         self.img = img
         self.predict_part = self.surface_model(self.img, verbose=False, conf=0.7)[0]
         self.detections_part = sv.Detections.from_yolov8(self.predict_part)
         
         if self.detections_part.mask is None:
             return None
-        for region_mask, region_contours, color_name, rgb in self.detect_cube(self.img, options):
+        for region_mask, region_contours in self.detect_cube(self.img, options):
             if region_mask is None and region_contours is None:
                 return None
 
@@ -167,7 +168,6 @@ class block_detect:
                         internal = cv2.pointPolygonTest(region_contours[0], (center_X, center_Y), False)
                         if internal <= 0:
                             continue
-
                         planes.append(part_contour)
             
             _ , large_point = self.large_plane_process(region_mask, planes)
@@ -180,11 +180,10 @@ class block_detect:
                 y = int(y)
                 #是否要用model去抓，否則用HSV------------------------------=
                 if self.color_model == None:
-                    cv2.circle(img, (x, y), 5, rgb, -1)
+                    cv2.circle(img, (x, y), 5, self.color_check_by_HSV(region_mask), -1)
                 else:
-                    cv2.circle(img, (x, y), 5, rgb, -1)
-
-            yield image_points, color_name , rgb
+                    cv2.circle(img, (x, y), 5, self.detect_color_by_model(region_mask), -1)
+            yield image_points
                 
     def large_plane_process(self, size, planes):#最大面處理
         self.size = size
@@ -205,26 +204,25 @@ class block_detect:
             return None ,None
         return merge_lines, combine_points
 
-    # def get_color_text(self, img):#取方塊顏色作為文字顏色
-    #     self.img = img
-    #     color_deter = {
-    #     "white": (255, 255, 255),
-    #     "red": (0, 0, 255),
-    #     "orange": (0, 100, 255),
-    #     "yellow": (0, 255, 255),
-    #     "green": (0, 128, 0),
-    #     "black": (0, 0, 0),
-    #     "purple": (160, 0, 160)
-    #     }
-    #     #是否要用model去抓，否則用HSV-----------------------------------------
-    #     if self.color_model == None:
-    #         rgb = self.color_check_by_HSV(self.region_mask)
-    #     else:
-    #         rgb = self.detect_color_by_model(self.img)
-    #     for color_name, rgb_value in color_deter.items():
-    #         if rgb_value == rgb :
-    #             return color_name , rgb
-                
+    def get_color_text(self, img):#取方塊顏色作為文字顏色
+        self.img = img
+        color_deter = {
+        "white": (255, 255, 255),
+        "red": (0, 0, 255),
+        "orange": (0, 100, 255),
+        "yellow": (0, 255, 255),
+        "green": (0, 128, 0),
+        "black": (0, 0, 0),
+        "purple": (160, 0, 160)
+        }
+        #是否要用model去抓，否則用HSV-----------------------------------------
+        if self.color_model == None:
+            rgb = self.color_check_by_HSV(self.region_mask)
+        else:
+            rgb = self.detect_color_by_model(img)
+        for color_name, rgb_value in color_deter.items():
+            if rgb_value == rgb:
+                yield color_name , rgb
 
     def __find_reference_point(self, series):#抓前一個參考點
         if self.isFirstFrame == True:#抓第一偵參考點
