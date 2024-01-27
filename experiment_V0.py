@@ -34,7 +34,7 @@ arm.grip_complete_open()
 cube_model = YOLO("./cube.pt")
 surface_model = YOLO('./cube_surface.pt')
 
-model_color_grip = YOLO("./grip_cube_color.pt")
+model_color_grip = YOLO("./cube_color.pt")
 model_color_emvironment = YOLO('./cube_color.pt')
 
 with open('./hand_matrix/calibration.pkl', 'rb') as file:
@@ -43,7 +43,7 @@ with open("./fixedCam_matrix/MultiMatrix_fixed_640_480.npz","rb") as file:
     mtx = np.load(file)["camMatrix"]
     dist = np.load(file)["distCoef"]
 
-series : list[CD.ColorType] = ["yellow", 'purple']#---------------------------------------------------------------------------------------------------------------------------顏色輸入
+series : list[CD.ColorType] = ["yellow", 'purple', 'black', "red", "green"]#---------------------------------------------------------------------------------------------------------------------------顏色輸入
 
 CT = CT.block_detect(surface_model, cube_model, model_color_grip)
 detector = CD.CubeDetector(cube_model, surface_model, model_color_emvironment) 
@@ -202,9 +202,9 @@ for i in range(len(environment_coor)):
     pile_z_axis = 230 + (i*50)
 
     x = environment_coor[i][0]
-    y = environment_coor[i][1]
+    y = environment_coor[i][1] - 80
     arm.move_to(y=400)
-    arm.move_to(x=x, y=y-80, z=350)
+    arm.move_to(x= x, y= y, z=350)
     Save_2_grip.reset()
     #------------------夾爪抓偏移座標並移動---------------------
     lens = cv2.VideoCapture(0,cv2.CAP_DSHOW)
@@ -213,38 +213,38 @@ for i in range(len(environment_coor)):
         if not ret:
             break
         vertical_offset = 0
-        for image_points in CT.detect_parts(img):
-            for color_name, rgb in CT.get_color_text(img):
-                image_points = np.float32(image_points)
-                retval, rvec, tvec = cv2.solvePnP(object_points[:4], image_points, camera_matrix, dist_coeff)
-                if not retval:
-                    break
-                x = tvec[0]
-                y = tvec[1]
-                z = tvec[2]
-                rotation_matrix, _ = cv2.Rodrigues(rvec)
-                # 使用旋转矩阵计算欧拉角（roll-pitch-yaw 顺序）
-                yaw = np.arctan2(rotation_matrix[1, 0], rotation_matrix[0, 0])
-                pitch = np.arctan2(-rotation_matrix[2, 0], np.sqrt(rotation_matrix[2, 1] ** 2 + rotation_matrix[2, 2] ** 2))
-                roll = np.arctan2(rotation_matrix[2, 1], rotation_matrix[2, 2])
-                # 将弧度转换为度数
-                rz = np.degrees(yaw)
-                ry = np.degrees(pitch)
-                rx = np.degrees(roll)
-                RotationZ = np.array([rz])
-                text_loc_tvec = (5, 15 + vertical_offset)
-                text_loc_rvec = (5, 32 + vertical_offset)
-                text_loc_check = (400, 15 + vertical_offset)
+        for image_points , color_name , rgb in CT.detect_surface(img):
+            #for color_name, rgb in CT.get_color_text(img):
+            image_points = np.float32(image_points)
+            retval, rvec, tvec = cv2.solvePnP(object_points[:4], image_points, camera_matrix, dist_coeff)
+            if not retval:
+                break
+            x = tvec[0]
+            y = tvec[1]
+            z = tvec[2]
+            rotation_matrix, _ = cv2.Rodrigues(rvec)
+            # 使用旋转矩阵计算欧拉角（roll-pitch-yaw 顺序）
+            yaw = np.arctan2(rotation_matrix[1, 0], rotation_matrix[0, 0])
+            pitch = np.arctan2(-rotation_matrix[2, 0], np.sqrt(rotation_matrix[2, 1] ** 2 + rotation_matrix[2, 2] ** 2))
+            roll = np.arctan2(rotation_matrix[2, 1], rotation_matrix[2, 2])
+            # 将弧度转换为度数
+            rz = np.degrees(yaw)
+            ry = np.degrees(pitch)
+            rx = np.degrees(roll)
+            RotationZ = np.array([rz])
+            text_loc_tvec = (5, 15 + vertical_offset)
+            text_loc_rvec = (5, 32 + vertical_offset)
+            text_loc_check = (400, 15 + vertical_offset)
 
-                Save_2_grip.save_coordinate_by_color(series[i], x, y, RotationZ, 15)
-                xyz_str = [f"{c}: {v[0]:.2f}" for c, v in zip("xyz", [x, y, z])]
-                cv2.putText(img, f"{color_name} {', '.join(xyz_str)}", text_loc_tvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
-                cv2.putText(img, f"Rotate Z: {rz:.1f},   Rotate Y: {ry:.1f},   Rotate X: {rx:.1f}", text_loc_rvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
-                if -10 < x < 10 and -10 < y < 10:
-                    cv2.putText(img, "OK", text_loc_check, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                else:
-                    cv2.putText(img, "Moving", text_loc_check, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255) ,2)
-                vertical_offset += 34
+            Save_2_grip.save_coordinate_by_color(color_name, x, y, RotationZ, 15, series[i])
+            xyz_str = [f"{c}: {v[0]:.2f}" for c, v in zip("xyz", [x, y, z])]
+            cv2.putText(img, f"{color_name} {', '.join(xyz_str)}", text_loc_tvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
+            cv2.putText(img, f"Rotate Z: {rz:.1f},   Rotate Y: {ry:.1f},   Rotate X: {rx:.1f}", text_loc_rvec, cv2.FONT_HERSHEY_SIMPLEX, 0.5, rgb, 2)
+            if -10 < x < 10 and -10 < y < 10:
+                cv2.putText(img, "OK", text_loc_check, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            else:
+                cv2.putText(img, "Moving", text_loc_check, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255) ,2)
+            vertical_offset += 34
         cv2.imshow("test", img)
         cv2.waitKey(1)
         if Save_2_grip.completed_Save == True:
@@ -263,7 +263,7 @@ for i in range(len(environment_coor)):
         print(offset_x, offset_y, offset_Rz)
         arm.cam_move_to(x=offset_x, y=offset_y, alpha=offset_Rz)
     #------------------向下並抓起移回原點--------------------
-        arm.grip_move_to(x=-5, y=95, z=240)
+        arm.grip_move_to(x=0, y=80, z=240)
         arm.grip_complete_close()#夾起
         if isFirst:
             arm.move_to(z=pile_z_axis + 80)#往上移
@@ -276,8 +276,9 @@ for i in range(len(environment_coor)):
             arm.move_to(x=350, y=400)
             arm.move_to_origin(move_z=pile_z_axis+15)#移動到放置位置
             arm.move_to(z=pile_z_axis-5)#向下推
+        # arm.move_to_origin(move_z=pile_z_axis+65)#往上移
         arm.grip_complete_open()#放開
-        arm.move_to_origin(move_z=470)
+        arm.move_by(z=65)#往上移
 
 arm.move_to_origin()
 arm.terminate()

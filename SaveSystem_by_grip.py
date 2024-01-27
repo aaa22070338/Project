@@ -14,7 +14,7 @@ class save_system:
         self.count = 0
 
     @classmethod
-    def save_coordinate_by_color(self, color_name, x, y, Rz, input_count):
+    def save_coordinate_by_color(self, color_name, x, y, Rz, input_count, check_color:str | None = None):
         if self.completed_Save == False:
             if self.isclear == False:
                 #清除檔案
@@ -37,9 +37,9 @@ class save_system:
                 self.count += 1
             # if color_coordinates_count + 1 == 4:
             #     print(f"{color_name}，已達上限")
-
-            if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith(color_name))  == input_count):
-                self.completed_Save = True
+            if check_color:
+                if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith(check_color))  == input_count):
+                    self.completed_Save = True
             # if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("yellow"))  == input_count):
             #     self.completed_Save = True
             # if (sum(1 for line in open("SaveCoor_grip.txt") if line.startswith("red"))  == input_count):
